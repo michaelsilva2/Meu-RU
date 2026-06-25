@@ -65,8 +65,10 @@ RATE_LIMIT_MAX_TENTATIVAS = 5
 RATE_LIMIT_JANELA_MINUTOS = 15
 
 # ── WhatsApp / Twilio ────────────────────────────────────────────────────────
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
-TWILIO_AUTH_TOKEN  = os.getenv("TWILIO_AUTH_TOKEN", "")
+TWILIO_ACCOUNT_SID   = os.getenv("TWILIO_ACCOUNT_SID", "")
+TWILIO_AUTH_TOKEN    = os.getenv("TWILIO_AUTH_TOKEN", "")
+TWILIO_API_KEY       = os.getenv("TWILIO_API_KEY", "")
+TWILIO_API_SECRET    = os.getenv("TWILIO_API_SECRET", "")
 # Sandbox: "whatsapp:+14155238886"  |  Produção: seu número aprovado
 TWILIO_WHATSAPP_FROM = os.getenv("TWILIO_WHATSAPP_FROM", "whatsapp:+14155238886")
 

@@ -13,8 +13,8 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
 from config import (
-    TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM,
-    ADMIN_WHATSAPP_NUMEROS, LIMIAR_PICO, JANELA_PICO_MIN,
+    TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_API_KEY, TWILIO_API_SECRET,
+    TWILIO_WHATSAPP_FROM, ADMIN_WHATSAPP_NUMEROS, LIMIAR_PICO, JANELA_PICO_MIN,
     INTERVALO_ALERTA_PICO_MIN,
 )
 from database import SessionLocal
@@ -28,11 +28,17 @@ logger = logging.getLogger(__name__)
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 def _twilio_habilitado() -> bool:
-    return bool(TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN)
+    return bool(TWILIO_ACCOUNT_SID and (TWILIO_AUTH_TOKEN or (TWILIO_API_KEY and TWILIO_API_SECRET)))
+
+
+def _get_twilio_client():
+    from twilio.rest import Client
+    if TWILIO_AUTH_TOKEN:
+        return Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+    return Client(TWILIO_API_KEY, TWILIO_API_SECRET, TWILIO_ACCOUNT_SID)
 
 
 def _formatar_numero(telefone: str) -> str:
-    """Normaliza para 'whatsapp:+55XXXXXXXXXXX'."""
     digits = "".join(c for c in telefone if c.isdigit())
     if not digits.startswith("55"):
         digits = "55" + digits
@@ -44,8 +50,7 @@ def _enviar_mensagem(para: str, corpo: str) -> bool:
         logger.info("[BOT-SIMULADO] Para %s: %s", para, corpo)
         return True
     try:
-        from twilio.rest import Client
-        client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+        client = _get_twilio_client()
         client.messages.create(from_=TWILIO_WHATSAPP_FROM, to=para, body=corpo)
         return True
     except Exception as exc:
