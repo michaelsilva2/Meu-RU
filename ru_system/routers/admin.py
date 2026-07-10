@@ -22,7 +22,7 @@ from sqlalchemy import func, desc
 from database import get_db
 from models import (
     Aluno, Admin, HistoricoRefeicao, HistoricoRecarga,
-    TipoRefeicao, TipoRecarga, RoleAdmin, CategoriaAluno,
+    TipoRefeicao, TipoRecarga, StatusRecarga, RoleAdmin, CategoriaAluno,
     SatisfacaoEnvio, SatisfacaoResposta, PicoMovimento,
     DesperdícioAlimento, NivelDesperdicio, Cardapio,
 )
@@ -82,7 +82,8 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
 
     recargas_hoje = db.query(HistoricoRecarga).filter(
         func.date(HistoricoRecarga.data_hora) == hoje,
-        HistoricoRecarga.tipo == TipoRecarga.recarga
+        HistoricoRecarga.tipo == TipoRecarga.recarga,
+        HistoricoRecarga.status == StatusRecarga.aprovado,
     ).count()
 
     total_creditos = db.query(func.sum(Aluno.creditos)).filter(Aluno.ativo == True).scalar() or 0
@@ -90,6 +91,8 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
     BR = timedelta(hours=-3)
     ultimas_recargas_raw = db.query(HistoricoRecarga, Aluno).join(
         Aluno, HistoricoRecarga.aluno_id == Aluno.id
+    ).filter(
+        HistoricoRecarga.status == StatusRecarga.aprovado,
     ).order_by(desc(HistoricoRecarga.data_hora)).limit(10).all()
 
     ultimas_recargas = [

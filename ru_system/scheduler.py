@@ -14,11 +14,13 @@ from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
 from config import FERIADOS_NACIONAIS
 from database import SessionLocal
-from models import Aluno, Cardapio, TipoRefeicao
+from models import Aluno, Cardapio, TipoRefeicao, HistoricoRecarga, StatusRecarga
 from email_service import enviar_emails_alerta_lote
+import payments
 
 logger = logging.getLogger(__name__)
 BR_TZ = ZoneInfo("America/Sao_Paulo")
@@ -114,6 +116,51 @@ async def alerta_fechamento_jantar():
     logger.info("Alerta fechamento jantar disparado.")
 
 
+# ── Pagamentos Pix: fallback de confirmação + expiração ────────────────────────
+
+async def confirmar_pagamentos_pendentes():
+    """
+    Fallback para quando o webhook do Mercado Pago não chega (ex: localhost
+    sem ngrok, ou uma entrega perdida). Consulta a API do MP pra cada
+    cobrança Pix ainda pendente e não expirada.
+    """
+    db = SessionLocal()
+    try:
+        agora = datetime.utcnow()
+        pendentes = db.query(HistoricoRecarga).filter(
+            HistoricoRecarga.status == StatusRecarga.pendente,
+            HistoricoRecarga.gateway_payment_id.isnot(None),
+            HistoricoRecarga.expira_em > agora,
+        ).all()
+        for recarga in pendentes:
+            try:
+                payments.confirmar_pagamento(db, recarga.gateway_payment_id)
+            except Exception:
+                logger.exception("Falha ao confirmar pagamento pendente id=%s", recarga.gateway_payment_id)
+    finally:
+        db.close()
+
+
+async def expirar_pix_pendentes():
+    """Marca como expiradas as cobranças Pix que passaram do prazo sem pagamento."""
+    db = SessionLocal()
+    try:
+        agora = datetime.utcnow()
+        expirados = db.query(HistoricoRecarga).filter(
+            HistoricoRecarga.status == StatusRecarga.pendente,
+            HistoricoRecarga.expira_em.isnot(None),
+            HistoricoRecarga.expira_em <= agora,
+        ).all()
+        for recarga in expirados:
+            recarga.status = StatusRecarga.expirado
+            recarga.atualizado_em = agora
+        if expirados:
+            db.commit()
+            logger.info("%d cobrança(s) Pix expirada(s).", len(expirados))
+    finally:
+        db.close()
+
+
 # ── Criação do scheduler ──────────────────────────────────────────────────────
 
 def criar_scheduler() -> AsyncIOScheduler:
@@ -137,5 +184,15 @@ def criar_scheduler() -> AsyncIOScheduler:
         alerta_fechamento_jantar,
         CronTrigger(hour=20, minute=30, day_of_week="mon-fri", timezone=BR_TZ),
         id="fechamento_jantar",
+    )
+    scheduler.add_job(
+        confirmar_pagamentos_pendentes,
+        IntervalTrigger(minutes=2),
+        id="confirmar_pagamentos_pendentes",
+    )
+    scheduler.add_job(
+        expirar_pix_pendentes,
+        IntervalTrigger(minutes=5),
+        id="expirar_pix_pendentes",
     )
     return scheduler

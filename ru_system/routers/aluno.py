@@ -3,20 +3,22 @@ Rotas da área do aluno: dashboard, histórico e exportação CSV.
 """
 import csv
 import io
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
 from fastapi import APIRouter, Request, Depends, Query, HTTPException, Form
-from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import func, extract
 
 from database import get_db
-from models import Aluno, HistoricoRefeicao, HistoricoRecarga, TipoRefeicao, TipoRecarga
+from models import Aluno, HistoricoRefeicao, HistoricoRecarga, TipoRefeicao, Cardapio
 from auth import obter_aluno_atual, gerar_csrf_token, verificar_csrf
 from whatsapp_bot import obter_status_pico
-from config import PRECOS_REFEICAO
+from config import PRECOS_REFEICAO, RECARGA_VALOR_MIN, RECARGA_VALOR_MAX, MERCADOPAGO_PUBLIC_KEY
+import payments
+import re
 
 router = APIRouter(prefix="/aluno")
 templates = Jinja2Templates(directory="templates")
@@ -58,12 +60,16 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
     ).order_by(HistoricoRefeicao.data_hora.desc()).limit(100).all()
 
     semanas: dict = defaultdict(int)
+    semana_labels: dict = {}
     for r in ultimas_refeicoes:
-        semana = r.data_hora.strftime("%Y-W%W")
-        semanas[semana] += 1
+        chave = r.data_hora.strftime("%Y-W%W")
+        semanas[chave] += 1
+        if chave not in semana_labels:
+            segunda = r.data_hora - timedelta(days=r.data_hora.weekday())
+            semana_labels[chave] = segunda.strftime("%d/%m")
 
     semanas_ordenadas = sorted(semanas.items())[-8:]
-    labels_semanas = [s[0] for s in semanas_ordenadas]
+    labels_semanas = [semana_labels[s[0]] for s in semanas_ordenadas]
     dados_semanas = [s[1] for s in semanas_ordenadas]
 
     ultimas_5 = db.query(HistoricoRefeicao).filter(
@@ -71,6 +77,7 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
     ).order_by(HistoricoRefeicao.data_hora.desc()).limit(5).all()
 
     custo_refeicao = PRECOS_REFEICAO.get(aluno.categoria.value, Decimal("6.00"))
+    saldo_baixo = Decimal(str(aluno.creditos)) < custo_refeicao
 
     csrf = gerar_csrf_token()
     resposta = templates.TemplateResponse(request, "aluno/dashboard.html", {
@@ -81,8 +88,11 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
         "ultimas_refeicoes": ultimas_5,
         "creditos_formatado": f"{float(aluno.creditos):.2f}".replace(".", ","),
         "custo_refeicao": f"{float(custo_refeicao):.2f}".replace(".", ","),
+        "saldo_baixo": saldo_baixo,
         "csrf_token": csrf,
         "status_pico": obter_status_pico(db),
+        "mp_public_key": MERCADOPAGO_PUBLIC_KEY,
+        "cpf_cadastrado": bool(aluno.cpf),
     })
     resposta.set_cookie("csrf_token", csrf, httponly=False, samesite="lax")
     return resposta
@@ -174,7 +184,7 @@ async def historico(
     return resposta
 
 
-# ─── Recarga pelo aluno ────────────────────────────────────────────────────
+# ─── Recarga pelo aluno (Pix via Mercado Pago) ──────────────────────────────
 
 @router.post("/recarregar")
 async def recarregar_post(
@@ -183,40 +193,172 @@ async def recarregar_post(
     csrf_token: str = Form(...),
     db: Session = Depends(get_db)
 ):
+    """
+    Cria uma cobrança Pix pendente e devolve o QR code / copia-e-cola.
+    Não credita nada aqui — o crédito só acontece quando o pagamento é
+    confirmado (webhook do Mercado Pago ou o job de polling de fallback).
+    """
     try:
         payload = obter_aluno_atual(request)
     except HTTPException:
-        return RedirectResponse(url="/login", status_code=302)
+        return JSONResponse({"erro": "sessao_expirada"}, status_code=401)
 
-    verificar_csrf(request, {"csrf_token": csrf_token})
+    try:
+        verificar_csrf(request, {"csrf_token": csrf_token})
+    except HTTPException as exc:
+        return JSONResponse({"erro": "csrf_invalido"}, status_code=exc.status_code)
 
     aluno = db.query(Aluno).filter(
         Aluno.id == int(payload["sub"]),
         Aluno.ativo == True
     ).first()
     if not aluno:
-        return RedirectResponse(url="/login", status_code=302)
+        return JSONResponse({"erro": "sessao_expirada"}, status_code=401)
 
     try:
         valor_decimal = Decimal(valor.replace(",", "."))
-        if valor_decimal <= 0 or valor_decimal > 500:
+        if valor_decimal < RECARGA_VALOR_MIN or valor_decimal > RECARGA_VALOR_MAX:
             raise ValueError
     except (InvalidOperation, ValueError):
-        return RedirectResponse(url="/aluno/dashboard?erro=valor_invalido", status_code=303)
+        return JSONResponse({"erro": "valor_invalido"}, status_code=400)
 
-    aluno.creditos = Decimal(str(aluno.creditos)) + valor_decimal
+    try:
+        recarga = payments.criar_cobranca_pix(db, aluno, valor_decimal)
+    except payments.PagamentoError:
+        return JSONResponse({"erro": "gateway_indisponivel"}, status_code=502)
 
-    recarga = HistoricoRecarga(
-        aluno_id=aluno.id,
-        admin_id=None,
-        tipo=TipoRecarga.recarga,
-        valor=valor_decimal,
-        observacao="Recarga realizada pelo aluno",
-    )
-    db.add(recarga)
+    return JSONResponse({
+        "referencia": recarga.external_reference,
+        "valor": f"{float(recarga.valor):.2f}",
+        "qr_base64": recarga.pix_qr_base64,
+        "copia_cola": recarga.pix_copia_cola,
+        "expira_em": recarga.expira_em.isoformat() if recarga.expira_em else None,
+    })
+
+
+@router.get("/recarga-status/{referencia}")
+async def recarga_status(referencia: str, request: Request, db: Session = Depends(get_db)):
+    """Consultado pelo frontend (polling) enquanto aguarda a confirmação do Pix."""
+    try:
+        payload = obter_aluno_atual(request)
+    except HTTPException:
+        return JSONResponse({"erro": "sessao_expirada"}, status_code=401)
+
+    recarga = db.query(HistoricoRecarga).filter(
+        HistoricoRecarga.external_reference == referencia,
+        HistoricoRecarga.aluno_id == int(payload["sub"]),
+    ).first()
+    if not recarga:
+        return JSONResponse({"erro": "nao_encontrada"}, status_code=404)
+
+    aluno = db.query(Aluno).filter(Aluno.id == int(payload["sub"])).first()
+
+    return JSONResponse({
+        "status": recarga.status.value,
+        "valor": f"{float(recarga.valor):.2f}",
+        "creditos_atual": f"{float(aluno.creditos):.2f}" if aluno else None,
+    })
+
+
+# ─── Recarga pelo aluno (Cartão via Mercado Pago Card Payment Brick) ────────
+
+_CPF_RE = re.compile(r"^\d{11}$")
+
+
+@router.post("/cpf")
+async def salvar_cpf(request: Request, db: Session = Depends(get_db)):
+    """Salva o CPF do aluno, pedido antes do primeiro pagamento por cartão."""
+    try:
+        payload = obter_aluno_atual(request)
+    except HTTPException:
+        return JSONResponse({"erro": "sessao_expirada"}, status_code=401)
+
+    body = await request.json()
+    try:
+        verificar_csrf(request, {"csrf_token": body.get("csrf_token")})
+    except HTTPException as exc:
+        return JSONResponse({"erro": "csrf_invalido"}, status_code=exc.status_code)
+
+    cpf_limpo = re.sub(r"\D", "", str(body.get("cpf", "")))
+    if not _CPF_RE.match(cpf_limpo):
+        return JSONResponse({"erro": "cpf_invalido"}, status_code=400)
+
+    aluno = db.query(Aluno).filter(Aluno.id == int(payload["sub"]), Aluno.ativo == True).first()
+    if not aluno:
+        return JSONResponse({"erro": "sessao_expirada"}, status_code=401)
+
+    aluno.cpf = cpf_limpo
     db.commit()
+    return JSONResponse({"ok": True})
 
-    return RedirectResponse(url="/aluno/dashboard?msg=recarga_ok", status_code=303)
+
+@router.post("/mp-customer-id")
+async def obter_mp_customer_id(request: Request, db: Session = Depends(get_db)):
+    """Retorna (criando se necessário) o customer_id do aluno no Mercado Pago."""
+    try:
+        payload = obter_aluno_atual(request)
+    except HTTPException:
+        return JSONResponse({"erro": "sessao_expirada"}, status_code=401)
+
+    aluno = db.query(Aluno).filter(Aluno.id == int(payload["sub"]), Aluno.ativo == True).first()
+    if not aluno:
+        return JSONResponse({"erro": "sessao_expirada"}, status_code=401)
+
+    try:
+        customer_id = payments.obter_ou_criar_customer(db, aluno)
+    except payments.PagamentoError:
+        return JSONResponse({"erro": "gateway_indisponivel"}, status_code=502)
+
+    return JSONResponse({"customer_id": customer_id})
+
+
+@router.post("/recarregar-cartao")
+async def recarregar_cartao_post(request: Request, db: Session = Depends(get_db)):
+    """
+    Recebe os dados tokenizados pelo Card Payment Brick (onSubmit) e cria o
+    pagamento. Diferente do Pix, resolve na hora — a resposta já vem com o
+    status final (ou 'pendente', se o emissor exigir revisão extra).
+    """
+    try:
+        payload = obter_aluno_atual(request)
+    except HTTPException:
+        return JSONResponse({"erro": "sessao_expirada"}, status_code=401)
+
+    body = await request.json()
+    try:
+        verificar_csrf(request, {"csrf_token": body.get("csrf_token")})
+    except HTTPException as exc:
+        return JSONResponse({"erro": "csrf_invalido"}, status_code=exc.status_code)
+
+    aluno = db.query(Aluno).filter(Aluno.id == int(payload["sub"]), Aluno.ativo == True).first()
+    if not aluno:
+        return JSONResponse({"erro": "sessao_expirada"}, status_code=401)
+
+    if not aluno.cpf:
+        return JSONResponse({"erro": "cpf_necessario"}, status_code=400)
+
+    try:
+        valor_decimal = Decimal(str(body.get("valor", "")).replace(",", "."))
+        if valor_decimal < RECARGA_VALOR_MIN or valor_decimal > RECARGA_VALOR_MAX:
+            raise ValueError
+    except (InvalidOperation, ValueError):
+        return JSONResponse({"erro": "valor_invalido"}, status_code=400)
+
+    if not body.get("token") or not body.get("payment_method_id"):
+        return JSONResponse({"erro": "dados_cartao_invalidos"}, status_code=400)
+
+    try:
+        recarga = payments.criar_pagamento_cartao(db, aluno, valor_decimal, body)
+    except payments.PagamentoError:
+        return JSONResponse({"erro": "gateway_indisponivel"}, status_code=502)
+
+    db.refresh(aluno)
+    return JSONResponse({
+        "status": recarga.status.value,
+        "referencia": recarga.external_reference,
+        "valor": f"{float(recarga.valor):.2f}",
+        "creditos_atual": f"{float(aluno.creditos):.2f}",
+    })
 
 
 # ─── Registrar Refeição pelo aluno ────────────────────────────────────────────
@@ -247,6 +389,14 @@ async def registrar_refeicao_post(
     except ValueError:
         tipo_enum = TipoRefeicao.almoco
 
+    hoje_inicio = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    refeicoes_hoje = db.query(HistoricoRefeicao).filter(
+        HistoricoRefeicao.aluno_id == aluno.id,
+        HistoricoRefeicao.data_hora >= hoje_inicio,
+    ).count()
+    if refeicoes_hoje >= 2:
+        return RedirectResponse(url="/aluno/dashboard?erro=limite_diario", status_code=303)
+
     custo = PRECOS_REFEICAO.get(aluno.categoria.value, Decimal("6.00"))
     if custo > 0 and Decimal(str(aluno.creditos)) < custo:
         return RedirectResponse(url="/aluno/dashboard?erro=saldo_insuficiente", status_code=303)
@@ -265,3 +415,33 @@ async def registrar_refeicao_post(
     db.commit()
 
     return RedirectResponse(url="/aluno/dashboard?msg=refeicao_ok", status_code=303)
+
+
+# ─── Cardápio do dia (JSON para o widget) ──────────────────────────────────
+
+@router.get("/cardapio-hoje")
+async def cardapio_hoje(request: Request, db: Session = Depends(get_db)):
+    try:
+        obter_aluno_atual(request)
+    except Exception:
+        return JSONResponse({"erro": "não autorizado"}, status_code=401)
+
+    from zoneinfo import ZoneInfo
+    BR_TZ = ZoneInfo("America/Sao_Paulo")
+    hoje = datetime.now(BR_TZ).date()
+
+    resultado = {}
+    for tipo in (TipoRefeicao.almoco, TipoRefeicao.jantar):
+        c = db.query(Cardapio).filter(
+            Cardapio.data == hoje,
+            Cardapio.tipo == tipo,
+        ).first()
+        if c:
+            resultado[tipo.value] = {
+                "prato_principal": c.prato_principal,
+                "acompanhamentos": c.acompanhamentos,
+                "sobremesa": c.sobremesa,
+                "observacao": c.observacao,
+            }
+
+    return JSONResponse({"data": str(hoje), "cardapio": resultado})

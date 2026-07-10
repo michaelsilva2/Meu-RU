@@ -8,7 +8,7 @@
         <div class="flex items-center justify-between h-16">
             <div class="flex items-center gap-3">
                 <a href="/aluno/dashboard"
-                   class="text-gray-400 hover:text-white text-sm transition flex items-center gap-1">
+                   class="text-gray-400 hover:text-white text-xs font-semibold uppercase tracking-widest transition flex items-center gap-1">
                     ← Voltar
                 </a>
                 <span class="text-white/20">|</span>
@@ -18,10 +18,13 @@
             <button onclick="toggleDarkMode()" class="dm-icon text-gray-400 hover:text-white transition p-1.5 rounded-lg hover:bg-white/10"></button>
             <form method="POST" action="/aluno/logout">
                 <button type="submit"
-                    class="text-xs font-medium px-3 py-1.5 rounded-lg border transition"
-                    style="color: #F47920; border-color: #F4792033;"
-                    onmouseover="this.style.backgroundColor='#F4792011'"
-                    onmouseout="this.style.backgroundColor='transparent'">
+                    class="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide px-3 py-1.5 rounded-lg transition-all duration-200"
+                    style="color: #F47920; background: #F4792018;"
+                    onmouseover="this.style.background='#F4792030'; this.style.boxShadow='0 0 0 2px #F4792035';"
+                    onmouseout="this.style.background='#F4792018'; this.style.boxShadow='none';">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                    </svg>
                     Sair
                 </button>
             </form>
@@ -126,5 +129,7 @@
         </div>
         {% endif %}
     </div>
+
+    {% include "aluno/_bot_widget.html" %}
 </main>
 {% endblock %}

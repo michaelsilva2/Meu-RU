@@ -11,14 +11,26 @@
                 <span class="text-white font-bold text-base tracking-widest uppercase">Meu RU</span>
             </div>
             <div class="flex items-center gap-3">
-                <span class="text-gray-400 text-sm hidden sm:block">{{ aluno.nome.split()[0] }}</span>
                 <button onclick="toggleDarkMode()" class="dm-icon text-gray-400 hover:text-white transition p-1.5 rounded-lg hover:bg-white/10"></button>
+                <a href="https://www.instagram.com/ru.ufcat" target="_blank" rel="noopener"
+                   class="text-gray-400 hover:text-white transition p-1.5 rounded-lg hover:bg-white/10"
+                   title="@ru.ufcat no Instagram">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                        <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+                        <circle cx="12" cy="12" r="4"/>
+                        <circle cx="17.5" cy="6.5" r="0.5" fill="currentColor" stroke="none"/>
+                    </svg>
+                </a>
+                <span class="text-xs font-bold tracking-widest uppercase text-white hidden sm:block">{{ aluno.nome.split()[0] }}</span>
                 <form method="POST" action="/aluno/logout">
                     <button type="submit"
-                        class="text-xs font-medium px-3 py-1.5 rounded-lg border transition"
-                        style="color: #F47920; border-color: #F4792033;"
-                        onmouseover="this.style.backgroundColor='#F4792011'"
-                        onmouseout="this.style.backgroundColor='transparent'">
+                        class="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide px-3 py-1.5 rounded-lg transition-all duration-200"
+                        style="color: #F47920; background: #F4792018;"
+                        onmouseover="this.style.background='#F4792030'; this.style.boxShadow='0 0 0 2px #F4792035';"
+                        onmouseout="this.style.background='#F4792018'; this.style.boxShadow='none';">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                        </svg>
                         Sair
                     </button>
                 </form>
@@ -33,28 +45,99 @@
     <div class="mb-8">
         <p class="text-gray-400 text-sm font-medium">Bem-vindo de volta,</p>
         <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight mt-0.5">
-            {{ aluno.nome.split()[0] }}
+            {{ aluno.nome.split()[0] }}!
         </h1>
     </div>
 
-    {% if request.query_params.get('msg') == 'recarga_ok' %}
-    <div id="msg-sucesso" class="mb-6 p-4 bg-green-50 border border-green-100 rounded-2xl text-green-700 flex items-center gap-2 text-sm">
-        ✅ Recarga realizada com sucesso!
+    {% macro toast_ok(titulo, subtitulo) %}
+    <div id="msg-toast" style="position:fixed;top:80px;right:24px;z-index:9999;width:310px;border-radius:18px;background:white;box-shadow:0 24px 60px rgba(0,0,0,0.13);overflow:hidden;animation:toastSlide .3s ease;">
+        <div style="display:flex;align-items:center;gap:14px;padding:16px 18px 14px;">
+            <div style="width:42px;height:42px;border-radius:13px;background:linear-gradient(135deg,#F47920,#E03D3D);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+            </div>
+            <div style="flex:1;min-width:0;">
+                <p style="font-weight:800;font-size:14px;color:#111827;margin:0;letter-spacing:-0.01em;">{{ titulo }}</p>
+                <p style="font-size:12px;color:#9CA3AF;margin:3px 0 0;font-weight:500;">{{ subtitulo }}</p>
+            </div>
+            <button onclick="this.closest('#msg-toast').remove()" style="background:none;border:none;cursor:pointer;color:#D1D5DB;font-size:20px;line-height:1;padding:0;flex-shrink:0;">&times;</button>
+        </div>
+        <div style="height:3px;background:#F3F4F6;">
+            <div id="toast-bar" style="height:100%;background:linear-gradient(90deg,#F47920,#E03D3D);width:100%;transition:width 4s linear;"></div>
+        </div>
     </div>
+    {% endmacro %}
+    {% macro toast_err(titulo, subtitulo) %}
+    <div id="msg-toast" style="position:fixed;top:80px;right:24px;z-index:9999;width:310px;border-radius:18px;background:white;box-shadow:0 24px 60px rgba(0,0,0,0.13);overflow:hidden;animation:toastSlide .3s ease;">
+        <div style="display:flex;align-items:center;gap:14px;padding:16px 18px 14px;">
+            <div style="width:42px;height:42px;border-radius:13px;background:linear-gradient(135deg,#F87171,#EF4444);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </div>
+            <div style="flex:1;min-width:0;">
+                <p style="font-weight:800;font-size:14px;color:#111827;margin:0;letter-spacing:-0.01em;">{{ titulo }}</p>
+                <p style="font-size:12px;color:#9CA3AF;margin:3px 0 0;font-weight:500;">{{ subtitulo }}</p>
+            </div>
+            <button onclick="this.closest('#msg-toast').remove()" style="background:none;border:none;cursor:pointer;color:#D1D5DB;font-size:20px;line-height:1;padding:0;flex-shrink:0;">&times;</button>
+        </div>
+        <div style="height:3px;background:#F3F4F6;">
+            <div id="toast-bar" style="height:100%;background:linear-gradient(90deg,#F87171,#EF4444);width:100%;transition:width 4s linear;"></div>
+        </div>
+    </div>
+    {% endmacro %}
+
+    {% if request.query_params.get('msg') == 'recarga_ok' %}
+        {{ toast_ok('Recarga realizada!', 'Seus créditos foram atualizados.') }}
     {% endif %}
     {% if request.query_params.get('msg') == 'refeicao_ok' %}
-    <div id="msg-sucesso" class="mb-6 p-4 bg-green-50 border border-green-100 rounded-2xl text-green-700 flex items-center gap-2 text-sm">
-        ✅ Refeição registrada com sucesso!
-    </div>
+        {{ toast_ok('Refeição registrada!', 'Seu uso foi computado com sucesso.') }}
     {% endif %}
     {% if request.query_params.get('erro') == 'valor_invalido' %}
-    <div class="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 flex items-center gap-2 text-sm">
-        ⚠️ Valor inválido. Informe um valor entre R$ 0,01 e R$ 500,00.
-    </div>
+        {{ toast_err('Valor inválido', 'Informe um valor entre R$ 1,00 e R$ 500,00.') }}
+    {% endif %}
+    {% if request.query_params.get('erro') == 'limite_diario' %}
+        {{ toast_err('Limite diário atingido', 'Você já registrou 2 refeições hoje.') }}
     {% endif %}
     {% if request.query_params.get('erro') == 'saldo_insuficiente' %}
-    <div class="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 flex items-center gap-2 text-sm">
-        ⚠️ Saldo insuficiente para registrar esta refeição.
+    <div id="msg-toast" data-persist="true" style="position:fixed;top:80px;right:24px;z-index:9999;width:310px;border-radius:18px;background:white;box-shadow:0 24px 60px rgba(0,0,0,0.13);overflow:hidden;animation:toastSlide .3s ease;">
+        <div style="display:flex;align-items:center;gap:14px;padding:16px 18px 14px;">
+            <div style="width:42px;height:42px;border-radius:13px;background:linear-gradient(135deg,#F87171,#EF4444);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+                </svg>
+            </div>
+            <div style="flex:1;min-width:0;">
+                <p style="font-weight:800;font-size:14px;color:#111827;margin:0;letter-spacing:-0.01em;">Saldo insuficiente</p>
+                <p style="font-size:12px;color:#9CA3AF;margin:3px 0 0;font-weight:500;">Você não tem créditos suficientes para essa refeição.</p>
+            </div>
+            <button onclick="this.closest('#msg-toast').remove()" style="background:none;border:none;cursor:pointer;color:#D1D5DB;font-size:20px;line-height:1;padding:0;flex-shrink:0;">&times;</button>
+        </div>
+        <button onclick="this.closest('#msg-toast').remove(); resetModalRecarga(); abrirModal('modal-recarga');"
+            style="display:block;width:100%;padding:11px 0;border:none;border-top:1px solid #F3F4F6;background:#FFF7F2;color:#F47920;font-weight:800;font-size:12.5px;letter-spacing:0.02em;text-transform:uppercase;cursor:pointer;transition:background .15s;"
+            onmouseover="this.style.background='#FFEDE0'" onmouseout="this.style.background='#FFF7F2'">
+            Recarregar agora →
+        </button>
+    </div>
+    {% endif %}
+
+    {% if saldo_baixo and not request.query_params.get('erro') and request.query_params.get('msg') != 'recarga_ok' %}
+    <div id="msg-toast-saldo-baixo" data-persist="true"
+         style="position:fixed;top:{{ '190px' if request.query_params.get('msg') == 'refeicao_ok' else '80px' }};right:24px;z-index:9999;width:310px;border-radius:18px;background:white;box-shadow:0 24px 60px rgba(0,0,0,0.13);overflow:hidden;animation:toastSlide .3s ease;">
+        <div style="display:flex;align-items:center;gap:14px;padding:16px 18px 14px;">
+            <div style="width:42px;height:42px;border-radius:13px;background:linear-gradient(135deg,#F47920,#E03D3D);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+                </svg>
+            </div>
+            <div style="flex:1;min-width:0;">
+                <p style="font-weight:800;font-size:14px;color:#111827;margin:0;letter-spacing:-0.01em;">Saldo baixo</p>
+                <p style="font-size:12px;color:#9CA3AF;margin:3px 0 0;font-weight:500;">Seu saldo não cobre o custo da próxima refeição.</p>
+            </div>
+            <button onclick="this.closest('#msg-toast-saldo-baixo').remove()" style="background:none;border:none;cursor:pointer;color:#D1D5DB;font-size:20px;line-height:1;padding:0;flex-shrink:0;">&times;</button>
+        </div>
+        <button onclick="this.closest('#msg-toast-saldo-baixo').remove(); resetModalRecarga(); abrirModal('modal-recarga');"
+            style="display:block;width:100%;padding:11px 0;border:none;border-top:1px solid #F3F4F6;background:#FFF7F2;color:#F47920;font-weight:800;font-size:12.5px;letter-spacing:0.02em;text-transform:uppercase;cursor:pointer;transition:background .15s;"
+            onmouseover="this.style.background='#FFEDE0'" onmouseout="this.style.background='#FFF7F2'">
+            Recarregar agora →
+        </button>
     </div>
     {% endif %}
 
@@ -78,7 +161,7 @@
 
         {% if aluno.categoria.value == 'bolsista' %}
         <!-- Bolsista: sem saldo, acesso gratuito -->
-        <div class="inline-flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-full mb-4 uppercase tracking-wide" style="color: white; background-color: rgba(0,0,0,0.50);">
+        <div class="badge-categoria inline-flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-full mb-4 uppercase tracking-wide bg-white" style="color: #F47920;">
             🎓 Bolsista
         </div>
         <p class="text-4xl font-extrabold text-white tracking-tight mb-1">Acesso gratuito</p>
@@ -91,31 +174,35 @@
 
         {% else %}
         <!-- Demais categorias: exibe saldo e botões -->
-        <div class="inline-flex items-center gap-2 bg-white/15 text-white/80 text-xs font-semibold px-3 py-1 rounded-full mb-3 uppercase tracking-wide">
+        <div class="inline-flex items-center gap-2 text-xs font-bold px-3 py-1 rounded-full mb-3 uppercase tracking-wide bg-white" style="color: #F47920;">
             {% if aluno.categoria.value == 'subsidiado' %}🏷️ Subsidiado — R$ {{ custo_refeicao }}/refeição
             {% elif aluno.categoria.value == 'externo' %}🏷️ Externo — R$ {{ custo_refeicao }}/refeição
-            {% else %}🏷️ Aluno — R$ {{ custo_refeicao }}/refeição{% endif %}
+            {% else %}🏷️ Integral — R$ {{ custo_refeicao }}/refeição{% endif %}
         </div>
-        <p class="text-white/70 text-xs font-semibold uppercase tracking-widest mb-1">Saldo disponível</p>
+        <p class="text-white/90 text-xs font-semibold uppercase tracking-widest mb-1">Saldo disponível</p>
         <p class="text-5xl font-extrabold text-white tracking-tight mb-1">
             R$ {{ creditos_formatado }}
         </p>
-        <p class="text-white/60 text-sm mb-6">créditos para uso no restaurante</p>
+        <p class="text-white/85 text-xs font-semibold uppercase tracking-widest mb-6">de créditos para uso no restaurante</p>
 
-        {% if aluno.creditos < 2 %}
-        <div class="inline-flex items-center gap-1.5 bg-white/15 text-white text-xs font-medium px-3 py-1.5 rounded-full mb-4">
-            ⚠️ Saldo baixo — recarregue logo
+        {% if saldo_baixo %}
+        <div class="w-full flex items-center gap-2.5 border-l-4 border-white rounded-lg px-4 py-2.5 mb-4" style="background: rgba(255,255,255,0.12);">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+            </svg>
+            <p class="text-white text-xs font-semibold">Saldo insuficiente para a próxima refeição — recarregue agora</p>
         </div>
         {% endif %}
 
         <div class="flex flex-wrap gap-3">
-            <button onclick="abrirModal('modal-recarga')"
+            <button onclick="resetModalRecarga(); abrirModal('modal-recarga')"
                 class="inline-flex items-center gap-2 bg-white font-bold text-sm px-5 py-2.5 rounded-xl transition hover:bg-white/90"
                 style="color: #F47920;">
                 + Recarregar créditos
             </button>
             <button onclick="abrirModal('modal-refeicao')"
-                class="inline-flex items-center gap-2 bg-white/20 border border-white/40 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition hover:bg-white/30">
+                class="inline-flex items-center gap-2 bg-white font-bold text-sm px-5 py-2.5 rounded-xl transition hover:bg-white/90"
+                style="color: #F47920;">
                 🍽️ Registrar refeição
             </button>
         </div>
@@ -127,7 +214,7 @@
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Este mês</p>
             <p class="text-3xl font-extrabold text-gray-900">{{ refeicoes_mes }}</p>
-            <p class="text-gray-400 text-xs mt-1">refeições realizadas</p>
+            <p class="text-gray-400 text-xs mt-1 uppercase tracking-wide">Refeições Realizadas</p>
         </div>
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Histórico</p>
@@ -136,7 +223,7 @@
                style="color: #F47920;">
                 Ver tudo →
             </a>
-            <p class="text-gray-400 text-xs mt-1">todas as refeições</p>
+            <p class="text-gray-400 text-xs mt-1 uppercase tracking-wide">Todas as Refeições</p>
         </div>
     </div>
 
@@ -190,6 +277,8 @@
     </div>
     {% endif %}
 
+    {% include "aluno/_bot_widget.html" %}
+
     <!-- Modal de refeição -->
     <div id="modal-refeicao" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
@@ -205,10 +294,10 @@
                     🎓 Bolsista — refeição gratuita
                 </div>
                 {% else %}
-                <p class="text-sm text-gray-400 mb-1">
+                <p class="text-sm text-gray-500 mb-1">
                     Saldo atual: <strong class="font-bold" style="color: #F47920;">R$ {{ creditos_formatado }}</strong>
                 </p>
-                <p class="text-sm text-gray-400 mb-5">
+                <p class="text-sm text-gray-500 mb-5">
                     Custo: <strong class="font-bold text-gray-700">R$ {{ custo_refeicao }}</strong>
                 </p>
                 {% endif %}
@@ -260,47 +349,143 @@
             <div class="p-6">
                 <div class="flex items-center justify-between mb-5">
                     <h3 class="text-lg font-bold text-gray-900">Recarregar créditos</h3>
-                    <button onclick="fecharModal('modal-recarga')"
+                    <button onclick="fecharModalRecarga()"
                         class="text-gray-300 hover:text-gray-500 text-2xl leading-none transition">&times;</button>
                 </div>
-                <p class="text-sm text-gray-400 mb-5">
-                    Saldo atual: <strong class="font-bold" style="color: #F47920;">R$ {{ creditos_formatado }}</strong>
-                </p>
-                <form method="POST" action="/aluno/recarregar" id="form-recarga">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+                <!-- Passo 1: valor -->
+                <div id="recarga-passo-valor">
+                    <p class="text-sm text-gray-500 mb-5">
+                        Saldo atual: <strong class="font-bold" style="color: #F47920;">R$ {{ creditos_formatado }}</strong>
+                    </p>
+                    <form id="form-recarga">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <div class="mb-5">
+                            <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                                Valor (R$)
+                            </label>
+                            <input
+                                type="number"
+                                name="valor"
+                                id="valor-recarga"
+                                min="1" max="500" step="0.01"
+                                placeholder="Ex: 50.00"
+                                required
+                                class="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-900 text-lg font-bold focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition"
+                            >
+                            <p class="text-xs text-gray-500 mt-1.5">Mínimo R$ 1,00 · Máximo R$ 500,00</p>
+                            <p id="erro-valor-recarga" class="hidden mt-2 text-xs font-semibold rounded-lg px-3 py-2 flex items-center gap-1.5" style="background:#FEF2F2;color:#E03D3D;">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+                                </svg>
+                                <span class="erro-texto">Valor inválido.</span>
+                            </p>
+                        </div>
+                        <div class="mb-5">
+                            <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                                Forma de pagamento
+                            </label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button type="button" data-metodo="pix" onclick="selecionarMetodoPagamento('pix')"
+                                    class="metodo-btn py-2.5 rounded-xl border-2 text-sm font-bold transition"
+                                    style="border-color:#F47920;background:#FFF4EC;color:#F47920;">
+                                    Pix
+                                </button>
+                                <button type="button" data-metodo="cartao" onclick="selecionarMetodoPagamento('cartao')"
+                                    class="metodo-btn py-2.5 rounded-xl border-2 text-sm font-bold transition"
+                                    style="border-color:#E5E7EB;background:white;color:#6B7280;">
+                                    Cartão
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex gap-3">
+                            <button type="button" onclick="fecharModalRecarga()"
+                                class="flex-1 py-3 border border-gray-200 rounded-xl text-gray-500 hover:bg-gray-50 transition text-sm font-medium">
+                                Cancelar
+                            </button>
+                            <button type="submit" id="btn-confirmar-recarga"
+                                class="btn-gradient flex-1 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 text-sm">
+                                <span class="btn-text">Gerar Pix</span>
+                                <span class="btn-loading hidden">
+                                    <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                    </svg>
+                                </span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Passo 2: QR code + copia-e-cola -->
+                <div id="recarga-passo-pix" class="hidden">
+                    <div class="flex flex-col items-center text-center">
+                        <div id="pix-status-badge" class="inline-flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-full mb-4" style="background:#FFF4EC;color:#F47920;">
+                            <span class="relative flex h-2 w-2 flex-shrink-0">
+                                <span class="pix-status-dot-ping animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style="background:#F47920;"></span>
+                                <span class="pix-status-dot relative inline-flex rounded-full h-2 w-2" style="background:#F47920;"></span>
+                            </span>
+                            <span id="pix-status-texto">Aguardando pagamento...</span>
+                        </div>
+                        <div id="pix-qr-secao" class="w-full flex flex-col items-center">
+                            <img id="pix-qr-img" src="" alt="QR Code Pix" class="w-48 h-48 rounded-xl border border-gray-100 mb-4 object-contain">
+                            <p class="text-xs text-gray-400 mb-2">Escaneie o QR code no app do seu banco ou copie o código:</p>
+                            <div class="w-full flex items-center gap-2 mb-2">
+                                <input id="pix-copia-cola" readonly
+                                    class="flex-1 min-w-0 px-3 py-2.5 border border-gray-200 rounded-lg text-xs text-gray-600 bg-gray-50 truncate">
+                                <button type="button" onclick="copiarPix()"
+                                    class="px-3 py-2.5 rounded-lg text-xs font-bold text-white flex-shrink-0" style="background:#F47920;">
+                                    Copiar
+                                </button>
+                            </div>
+                            <p id="pix-expira-texto" class="text-xs text-gray-500 mb-5"></p>
+                        </div>
+                    </div>
+                    <button type="button" onclick="fecharModalRecarga()"
+                        class="w-full py-3 border border-gray-200 rounded-xl text-gray-500 hover:bg-gray-50 transition text-sm font-medium">
+                        Fechar
+                    </button>
+                </div>
+
+                <!-- Passo 3: erro / expirado / rejeitado -->
+                <div id="recarga-passo-erro" class="hidden text-center">
+                    <p id="recarga-erro-texto" class="text-sm text-gray-500 mb-5">Algo deu errado. Tente novamente.</p>
+                    <button type="button" onclick="resetModalRecarga()"
+                        class="btn-gradient w-full py-3 rounded-xl text-white font-bold text-sm">
+                        Tentar novamente
+                    </button>
+                </div>
+
+                <!-- Passo 4: confirmar CPF (só antes do 1º pagamento por cartão) -->
+                <div id="recarga-passo-cpf" class="hidden">
+                    <p class="text-sm text-gray-500 mb-5">
+                        Pra pagar com cartão, precisamos confirmar seu CPF (exigido pelo Mercado Pago).
+                    </p>
                     <div class="mb-5">
-                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                            Valor (R$)
-                        </label>
-                        <input
-                            type="number"
-                            name="valor"
-                            id="valor-recarga"
-                            min="1" max="500" step="0.01"
-                            placeholder="Ex: 50.00"
-                            required
-                            class="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-900 text-lg font-bold focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition"
-                        >
-                        <p class="text-xs text-gray-300 mt-1.5">Mínimo R$ 1,00 · Máximo R$ 500,00</p>
+                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">CPF</label>
+                        <input type="text" id="cpf-input" inputmode="numeric" maxlength="14" placeholder="000.000.000-00"
+                            class="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-900 text-lg font-bold focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition">
+                        <p id="erro-cpf" class="hidden mt-2 text-xs font-semibold rounded-lg px-3 py-2 flex items-center gap-1.5" style="background:#FEF2F2;color:#E03D3D;">
+                            CPF inválido.
+                        </p>
                     </div>
                     <div class="flex gap-3">
-                        <button type="button" onclick="fecharModal('modal-recarga')"
+                        <button type="button" onclick="resetModalRecarga()"
                             class="flex-1 py-3 border border-gray-200 rounded-xl text-gray-500 hover:bg-gray-50 transition text-sm font-medium">
                             Cancelar
                         </button>
-                        <button type="submit" id="btn-confirmar-recarga"
-                            class="btn-gradient flex-1 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 text-sm"
-                            onclick="setLoading(this)">
-                            <span class="btn-text">Confirmar</span>
-                            <span class="btn-loading hidden">
-                                <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                                </svg>
-                            </span>
+                        <button type="button" id="btn-confirmar-cpf" onclick="confirmarCpf()"
+                            class="btn-gradient flex-1 text-white font-bold py-3 rounded-xl text-sm">
+                            Continuar
                         </button>
                     </div>
-                </form>
+                </div>
+
+                <!-- Passo 5: cartão (Card Payment Brick do Mercado Pago) -->
+                <div id="recarga-passo-cartao" class="hidden">
+                    <p id="cartao-carregando" class="text-sm text-gray-400 text-center py-6">Carregando formulário de pagamento...</p>
+                    <div id="cardPaymentBrick_container"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -308,9 +493,31 @@
 {% endblock %}
 
 {% block scripts %}
+<style>
+@keyframes toastSlide {
+    from { opacity: 0; transform: translateX(24px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+</style>
+{% if mp_public_key %}
+<script src="https://sdk.mercadopago.com/js/v2"></script>
+{% endif %}
 <script>
-const msgSucesso = document.getElementById('msg-sucesso');
-if (msgSucesso) setTimeout(() => msgSucesso.remove(), 4000);
+const msgToast = document.getElementById('msg-toast');
+if (msgToast) {
+    requestAnimationFrame(() => {
+        const bar = document.getElementById('toast-bar');
+        if (bar) bar.style.width = '0%';
+    });
+    if (!msgToast.dataset.persist) {
+        setTimeout(() => {
+            msgToast.style.transition = 'opacity .35s, transform .35s';
+            msgToast.style.opacity = '0';
+            msgToast.style.transform = 'translateX(24px)';
+            setTimeout(() => msgToast.remove(), 380);
+        }, 4000);
+    }
+}
 {% if dados_semanas %}
 const ctx = document.getElementById('grafico-semanas').getContext('2d');
 new Chart(ctx, {
@@ -320,16 +527,34 @@ new Chart(ctx, {
         datasets: [{
             label: 'Refeições',
             data: {{ dados_semanas | tojson }},
-            backgroundColor: 'rgba(244, 121, 32, 0.15)',
+            backgroundColor: 'rgba(244, 121, 32, 0.12)',
             borderColor: 'rgba(244, 121, 32, 1)',
+            hoverBackgroundColor: 'rgba(244, 121, 32, 0.28)',
             borderWidth: 2,
-            borderRadius: 8,
+            borderRadius: 0,
         }]
     },
     options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                backgroundColor: '#1A0D05',
+                titleColor: '#F47920',
+                bodyColor: '#fff',
+                padding: 12,
+                cornerRadius: 12,
+                displayColors: false,
+                titleFont: { family: 'Inter', weight: '700', size: 11 },
+                bodyFont: { family: 'Inter', size: 13, weight: '600' },
+                callbacks: {
+                    title: (items) => `Semana de ${items[0].label}`,
+                    label: (item) => `${item.raw} refeição${item.raw !== 1 ? 'ões' : ''}`,
+                }
+            }
+        },
         scales: {
             y: {
                 beginAtZero: true,
@@ -344,5 +569,321 @@ new Chart(ctx, {
     }
 });
 {% endif %}
+
+validarValorInput(document.getElementById('valor-recarga'), {
+    obrigatorio: 'Informe um valor para recarregar.',
+    minimo: 'O valor deve ser maior ou igual a R$ 1,00.',
+    maximo: 'O valor deve ser menor ou igual a R$ 500,00.',
+});
+
+// ─── Recarga via Pix / Cartão ───────────────────────────────────────────
+
+let recargaPollingInterval = null;
+let metodoSelecionado = 'pix';
+let cpfConfirmadoNestaSessao = {{ 'true' if cpf_cadastrado else 'false' }};
+let cardBrickController = null;
+let valorRecargaAtual = null;
+const mpInstance = {% if mp_public_key %}new MercadoPago('{{ mp_public_key }}', { locale: 'pt-BR' }){% else %}null{% endif %};
+
+function selecionarMetodoPagamento(metodo) {
+    metodoSelecionado = metodo;
+    document.querySelectorAll('.metodo-btn').forEach(btn => {
+        const ativo = btn.dataset.metodo === metodo;
+        btn.style.borderColor = ativo ? '#F47920' : '#E5E7EB';
+        btn.style.background = ativo ? '#FFF4EC' : 'white';
+        btn.style.color = ativo ? '#F47920' : '#6B7280';
+    });
+    document.querySelector('#btn-confirmar-recarga .btn-text').textContent =
+        metodo === 'pix' ? 'Gerar Pix' : 'Continuar';
+}
+
+function fecharModalRecarga() {
+    fecharModal('modal-recarga');
+    if (recargaPollingInterval) { clearInterval(recargaPollingInterval); recargaPollingInterval = null; }
+    if (cardBrickController) { try { cardBrickController.unmount(); } catch (e) {} cardBrickController = null; }
+    setTimeout(resetModalRecarga, 250);
+}
+
+function resetModalRecarga() {
+    document.getElementById('recarga-passo-valor').classList.remove('hidden');
+    document.getElementById('recarga-passo-pix').classList.add('hidden');
+    document.getElementById('recarga-passo-erro').classList.add('hidden');
+    document.getElementById('recarga-passo-cpf').classList.add('hidden');
+    document.getElementById('recarga-passo-cartao').classList.add('hidden');
+    document.getElementById('pix-qr-secao').classList.remove('hidden');
+
+    if (cardBrickController) { try { cardBrickController.unmount(); } catch (e) {} cardBrickController = null; }
+
+    const btn = document.getElementById('btn-confirmar-recarga');
+    btn.disabled = false;
+    btn.querySelector('.btn-text').classList.remove('hidden');
+    btn.querySelector('.btn-loading').classList.add('hidden');
+
+    document.getElementById('form-recarga').reset();
+    document.getElementById('erro-valor-recarga').classList.add('hidden');
+    document.getElementById('cpf-input').value = '';
+    document.getElementById('erro-cpf').classList.add('hidden');
+
+    selecionarMetodoPagamento('pix');
+
+    const badge = document.getElementById('pix-status-badge');
+    badge.style.background = '#FFF4EC';
+    badge.style.color = '#F47920';
+    badge.querySelector('.pix-status-dot').style.background = '#F47920';
+    badge.querySelector('.pix-status-dot-ping').style.background = '#F47920';
+    document.getElementById('pix-status-texto').textContent = 'Aguardando pagamento...';
+}
+
+function mostrarErroRecarga(msg) {
+    document.getElementById('recarga-passo-valor').classList.add('hidden');
+    document.getElementById('recarga-passo-pix').classList.add('hidden');
+    document.getElementById('recarga-passo-cpf').classList.add('hidden');
+    document.getElementById('recarga-passo-cartao').classList.add('hidden');
+    document.getElementById('recarga-passo-erro').classList.remove('hidden');
+    document.getElementById('recarga-erro-texto').textContent = msg;
+}
+
+function copiarPix() {
+    const campo = document.getElementById('pix-copia-cola');
+    navigator.clipboard.writeText(campo.value).then(() => {
+        showToast('Código Pix copiado!', 'sucesso', 2000);
+    }).catch(() => {
+        campo.select();
+    });
+}
+
+const ERROS_RECARGA = {
+    sessao_expirada: 'Sua sessão expirou. Recarregue a página e faça login novamente.',
+    csrf_invalido: 'Sessão inválida. Recarregue a página e tente de novo.',
+    valor_invalido: 'Informe um valor entre R$ 1,00 e R$ 500,00.',
+    gateway_indisponivel: 'Não conseguimos processar o pagamento agora. Tente novamente em instantes.',
+    cpf_necessario: 'Precisamos confirmar seu CPF antes de continuar.',
+    dados_cartao_invalidos: 'Não foi possível ler os dados do cartão. Tente de novo.',
+};
+
+document.getElementById('form-recarga').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const form = e.target;
+    if (!form.reportValidity()) return;
+
+    valorRecargaAtual = document.getElementById('valor-recarga').value;
+
+    if (metodoSelecionado === 'cartao') {
+        if (!cpfConfirmadoNestaSessao) {
+            document.getElementById('recarga-passo-valor').classList.add('hidden');
+            document.getElementById('recarga-passo-cpf').classList.remove('hidden');
+        } else {
+            await iniciarCartao();
+        }
+        return;
+    }
+
+    const btn = document.getElementById('btn-confirmar-recarga');
+    setLoading(btn);
+
+    try {
+        const res = await fetch('/aluno/recarregar', { method: 'POST', body: new FormData(form) });
+        const dados = await res.json();
+
+        if (!res.ok) {
+            mostrarErroRecarga(ERROS_RECARGA[dados.erro] || 'Não foi possível gerar a cobrança.');
+            return;
+        }
+
+        document.getElementById('pix-qr-img').src = `data:image/png;base64,${dados.qr_base64}`;
+        document.getElementById('pix-copia-cola').value = dados.copia_cola;
+        if (dados.expira_em) {
+            const expira = new Date(dados.expira_em + 'Z');
+            document.getElementById('pix-expira-texto').textContent =
+                `Expira às ${expira.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+        }
+
+        document.getElementById('recarga-passo-valor').classList.add('hidden');
+        document.getElementById('recarga-passo-pix').classList.remove('hidden');
+        iniciarPollingRecarga(dados.referencia);
+    } catch (err) {
+        mostrarErroRecarga('Não foi possível conectar. Verifique sua internet e tente de novo.');
+    }
+});
+
+async function confirmarCpf() {
+    const cpfInput = document.getElementById('cpf-input');
+    const cpfLimpo = cpfInput.value.replace(/\D/g, '');
+    const erroCpf = document.getElementById('erro-cpf');
+
+    if (cpfLimpo.length !== 11) {
+        erroCpf.textContent = 'Informe um CPF válido (11 dígitos).';
+        erroCpf.classList.remove('hidden');
+        return;
+    }
+    erroCpf.classList.add('hidden');
+
+    const btn = document.getElementById('btn-confirmar-cpf');
+    btn.disabled = true;
+    btn.textContent = 'Salvando...';
+
+    try {
+        const res = await fetch('/aluno/cpf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cpf: cpfLimpo, csrf_token: '{{ csrf_token }}' }),
+        });
+        const dados = await res.json();
+
+        if (!res.ok) {
+            erroCpf.textContent = 'CPF inválido. Confira e tente de novo.';
+            erroCpf.classList.remove('hidden');
+            btn.disabled = false;
+            btn.textContent = 'Continuar';
+            return;
+        }
+
+        cpfConfirmadoNestaSessao = true;
+        await iniciarCartao();
+    } catch (err) {
+        erroCpf.textContent = 'Não foi possível salvar agora. Tente de novo.';
+        erroCpf.classList.remove('hidden');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Continuar';
+    }
+}
+
+async function iniciarCartao() {
+    document.getElementById('recarga-passo-valor').classList.add('hidden');
+    document.getElementById('recarga-passo-cpf').classList.add('hidden');
+    document.getElementById('recarga-passo-cartao').classList.remove('hidden');
+
+    const container = document.getElementById('cardPaymentBrick_container');
+    container.innerHTML = '';
+    document.getElementById('cartao-carregando').classList.remove('hidden');
+
+    try {
+        const resCustomer = await fetch('/aluno/mp-customer-id', { method: 'POST' });
+        const dadosCustomer = await resCustomer.json();
+        if (!resCustomer.ok) throw new Error(dadosCustomer.erro || 'erro');
+
+        if (cardBrickController) { try { cardBrickController.unmount(); } catch (e) {} cardBrickController = null; }
+
+        cardBrickController = await mpInstance.bricks().create('cardPayment', 'cardPaymentBrick_container', {
+            initialization: {
+                amount: parseFloat(valorRecargaAtual),
+                payer: { customerId: dadosCustomer.customer_id, email: '{{ aluno.email }}' },
+            },
+            customization: {
+                visual: {
+                    style: {
+                        theme: 'default',
+                        customVariables: {
+                            baseColor: '#F47920',
+                            errorColor: '#E03D3D',
+                            successColor: '#16A34A',
+                            formBackgroundColor: '#FFFFFF',
+                            fontSizeMedium: '15px',
+                            fontWeightNormal: '500',
+                            fontWeightSemiBold: '700',
+                            inputFocusedBoxShadow: '0 0 0 2px #F4792025',
+                            borderRadiusLarge: '12px',
+                            borderRadiusMedium: '10px',
+                            borderRadiusSmall: '8px',
+                        },
+                    },
+                },
+                paymentMethods: { maxInstallments: 1 },
+            },
+            callbacks: {
+                onReady: () => {
+                    document.getElementById('cartao-carregando').classList.add('hidden');
+                },
+                onSubmit: (cardFormData) => new Promise((resolve, reject) => {
+                    fetch('/aluno/recarregar-cartao', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ...cardFormData, valor: valorRecargaAtual, csrf_token: '{{ csrf_token }}' }),
+                    })
+                        .then(res => res.json().then(dados => ({ ok: res.ok, dados })))
+                        .then(({ ok, dados }) => {
+                            if (!ok) {
+                                mostrarErroRecarga(ERROS_RECARGA[dados.erro] || 'Não foi possível processar o cartão.');
+                                reject();
+                                return;
+                            }
+                            resolve();
+                            processarResultadoCartao(dados);
+                        })
+                        .catch(() => { mostrarErroRecarga('Não foi possível conectar. Tente de novo.'); reject(); });
+                }),
+                onError: (error) => {
+                    console.error(error);
+                    mostrarErroRecarga('Erro no formulário de cartão. Confira os dados e tente de novo.');
+                },
+            },
+        });
+    } catch (err) {
+        mostrarErroRecarga('Não foi possível carregar o formulário de cartão agora.');
+    }
+}
+
+function processarResultadoCartao(dados) {
+    document.getElementById('recarga-passo-cartao').classList.add('hidden');
+    document.getElementById('recarga-passo-pix').classList.remove('hidden');
+    document.getElementById('pix-qr-secao').classList.add('hidden');
+
+    if (dados.status === 'aprovado') {
+        const badge = document.getElementById('pix-status-badge');
+        badge.style.background = '#F0FDF4';
+        badge.style.color = '#16A34A';
+        badge.querySelector('.pix-status-dot').style.background = '#16A34A';
+        badge.querySelector('.pix-status-dot-ping').style.background = '#16A34A';
+        document.getElementById('pix-status-texto').textContent = 'Pagamento aprovado!';
+        setTimeout(() => window.location.reload(), 1200);
+    } else if (dados.status === 'pendente') {
+        document.getElementById('pix-status-texto').textContent = 'Seu pagamento está em análise...';
+        iniciarPollingRecarga(dados.referencia);
+    } else {
+        mostrarErroRecarga('Pagamento recusado. Tente outro cartão.');
+    }
+}
+
+function iniciarPollingRecarga(referencia) {
+    if (recargaPollingInterval) clearInterval(recargaPollingInterval);
+
+    recargaPollingInterval = setInterval(async () => {
+        // Para de consultar se o modal foi fechado sem cancelar o intervalo (ex: clique fora)
+        if (document.getElementById('modal-recarga').classList.contains('hidden')) {
+            clearInterval(recargaPollingInterval);
+            recargaPollingInterval = null;
+            return;
+        }
+
+        try {
+            const res = await fetch(`/aluno/recarga-status/${referencia}`);
+            if (!res.ok) return;
+            const dados = await res.json();
+
+            if (dados.status === 'aprovado') {
+                clearInterval(recargaPollingInterval);
+                recargaPollingInterval = null;
+                const badge = document.getElementById('pix-status-badge');
+                badge.style.background = '#F0FDF4';
+                badge.style.color = '#16A34A';
+                badge.querySelector('.pix-status-dot').style.background = '#16A34A';
+                badge.querySelector('.pix-status-dot-ping').style.background = '#16A34A';
+                document.getElementById('pix-status-texto').textContent = 'Pagamento confirmado!';
+                setTimeout(() => window.location.reload(), 1200);
+            } else if (['expirado', 'rejeitado', 'cancelado'].includes(dados.status)) {
+                clearInterval(recargaPollingInterval);
+                recargaPollingInterval = null;
+                mostrarErroRecarga(
+                    dados.status === 'expirado'
+                        ? 'O tempo para pagamento expirou.'
+                        : 'O pagamento não foi aprovado.'
+                );
+            }
+        } catch (err) {
+            // mantém tentando no próximo ciclo
+        }
+    }, 4000);
+}
 </script>
 {% endblock %}

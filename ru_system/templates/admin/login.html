@@ -3,9 +3,6 @@
 
 {% block body %}
 <div class="min-h-screen bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center p-4">
-    <button onclick="toggleDarkMode()"
-        class="dm-icon fixed top-4 right-4 text-white/40 hover:text-white/80 transition p-2 rounded-lg hover:bg-white/10">
-    </button>
     <div class="w-full max-w-md">
         <div class="text-center mb-8">
             <div class="inline-flex items-center justify-center w-20 h-20 bg-gray-700 rounded-full shadow-lg mb-4 border-2 border-gray-500">
@@ -25,7 +22,7 @@
             </div>
             {% endif %}
 
-            <form method="POST" action="/admin/login">
+            <form method="POST" action="/admin/login" novalidate>
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
                 <div class="mb-4">

@@ -5,15 +5,15 @@
 <div class="min-h-screen flex flex-col items-center justify-center px-4 py-12"
      style="background-color: #1A1A1A;">
 
-    <button onclick="toggleDarkMode()"
-        class="dm-icon fixed top-4 right-4 text-white/40 hover:text-white/80 transition p-2 rounded-lg hover:bg-white/10">
-    </button>
-
     <!-- Logo + título -->
     <div class="mb-10 text-center">
         <img src="/static/img/favicon.png" alt="UFCAT" class="w-14 h-14 mx-auto mb-5 drop-shadow-lg">
         <h1 class="text-4xl font-extrabold text-white tracking-widest uppercase">MEU RU</h1>
-        <p class="text-sm mt-2" style="color: #F47920;">Restaurante Universitário · UFCAT</p>
+        <div class="flex items-center justify-center gap-2.5 mt-2.5">
+            <span class="h-px w-8" style="background: linear-gradient(to right, transparent, #F4792055);"></span>
+            <p class="text-xs font-semibold uppercase tracking-widest" style="color: #F4792099;">Recarga de Créditos · Restaurante Universitário</p>
+            <span class="h-px w-8" style="background: linear-gradient(to left, transparent, #F4792055);"></span>
+        </div>
     </div>
 
     <!-- Card -->
@@ -23,12 +23,20 @@
 
         <div class="p-8">
             {% if not enviado %}
-            <h2 class="text-xl font-bold text-gray-900 mb-2">Recuperar Senha</h2>
-            <p class="text-gray-400 text-sm mb-7">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                     style="background: linear-gradient(135deg, #F47920, #E03D3D);">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+                    </svg>
+                </div>
+                <h2 class="text-xl font-bold text-gray-900">Recuperar Senha</h2>
+            </div>
+            <p class="text-gray-600 text-sm mb-7">
                 Informe seu e-mail cadastrado para receber as instruções de recuperação.
             </p>
 
-            <form method="POST" action="/recuperar-senha">
+            <form method="POST" action="/recuperar-senha" id="form-recuperar" novalidate>
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <div class="mb-7">
                     <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
@@ -36,19 +44,22 @@
                     </label>
                     <input
                         type="email"
+                        id="email"
                         name="email"
                         placeholder="seu@email.com"
                         required
                         autofocus
-                        class="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-900 text-sm placeholder-gray-300 transition focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+                        class="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-900 text-sm placeholder-gray-300 transition focus:outline-none"
+                        onfocus="this.style.borderColor='#F47920'; this.style.boxShadow='0 0 0 3px #F4792022';"
+                        onblur="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none';"
                     >
                 </div>
                 <button type="submit"
+                    id="btn-enviar"
                     class="w-full text-white font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-2 text-sm"
                     style="background: linear-gradient(135deg, #F47920, #E03D3D);"
                     onmouseover="this.style.opacity='0.88'"
-                    onmouseout="this.style.opacity='1'"
-                    onclick="setLoading(this)">
+                    onmouseout="this.style.opacity='1'">
                     <span class="btn-text">Enviar Instruções</span>
                     <span class="btn-loading hidden">
                         <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
@@ -64,27 +75,32 @@
             <div class="text-center py-4">
                 <div class="text-5xl mb-4">📧</div>
                 <h2 class="text-xl font-bold text-gray-900 mb-3">E-mail enviado!</h2>
-                <p class="text-gray-400 text-sm">
+                <p class="text-gray-600 text-sm">
                     Se o e-mail informado estiver cadastrado, você receberá as instruções em breve.
                 </p>
-                <p class="text-gray-300 text-xs mt-3">Verifique também sua caixa de spam.</p>
+                <p class="text-gray-500 text-xs mt-3">Verifique também sua caixa de spam.</p>
             </div>
             {% endif %}
 
-            <div class="mt-6 text-center border-t border-gray-100 pt-5">
+            <div class="mt-6 border-t border-gray-100 pt-5 flex justify-center">
                 <a href="/login"
-                   class="text-sm font-medium transition"
-                   style="color: #F47920;"
-                   onmouseover="this.style.color='#D4640A'"
-                   onmouseout="this.style.color='#F47920'">
-                    ← Voltar para o login
+                   class="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide px-4 py-2 rounded-xl transition-all duration-200"
+                   style="color: #F47920; background: #F4792012;"
+                   onmouseover="this.style.background='#F4792025'; this.style.boxShadow='0 0 0 2px #F4792030';"
+                   onmouseout="this.style.background='#F4792012'; this.style.boxShadow='none';">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                    Voltar para o login
                 </a>
             </div>
         </div>
     </div>
 
-    <p class="text-xs mt-10 text-center" style="color: #F47920BB;">
-        Sistema de Créditos · Restaurante Universitário UFCAT
-    </p>
+    <div class="flex items-center justify-center gap-2.5 mt-10">
+        <span class="h-px w-8" style="background: linear-gradient(to right, transparent, #F4792055);"></span>
+        <p class="text-xs font-semibold uppercase tracking-widest" style="color: #F4792066;">Universidade Federal de Catalão</p>
+        <span class="h-px w-8" style="background: linear-gradient(to left, transparent, #F4792055);"></span>
+    </div>
 </div>
 {% endblock %}

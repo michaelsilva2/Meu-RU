@@ -78,7 +78,7 @@
                             onchange="this.form.submit()">
                             <option value="bolsista"   {% if aluno.categoria.value == 'bolsista'   %}selected{% endif %}>Bolsista — R$ 0,00</option>
                             <option value="subsidiado" {% if aluno.categoria.value == 'subsidiado' %}selected{% endif %}>Subsidiado — R$ 4,00</option>
-                            <option value="aluno"      {% if aluno.categoria.value == 'aluno'      %}selected{% endif %}>Aluno — R$ 6,00</option>
+                            <option value="integral"   {% if aluno.categoria.value == 'integral'   %}selected{% endif %}>Integral — R$ 6,00</option>
                             <option value="externo"    {% if aluno.categoria.value == 'externo'    %}selected{% endif %}>Externo — R$ 16,00</option>
                         </select>
                     </form>
@@ -180,6 +180,7 @@
                     <tr>
                         <th class="text-left px-6 py-3 text-gray-500 font-medium">Data/Hora</th>
                         <th class="text-left px-6 py-3 text-gray-500 font-medium">Tipo</th>
+                        <th class="text-left px-6 py-3 text-gray-500 font-medium">Status</th>
                         <th class="text-right px-6 py-3 text-gray-500 font-medium">Valor</th>
                         <th class="text-left px-6 py-3 text-gray-500 font-medium hidden md:table-cell">Observação</th>
                     </tr>
@@ -190,11 +191,24 @@
                         <td class="px-6 py-3 text-gray-700">{{ r.data_hora.strftime('%d/%m/%Y %H:%M') }}</td>
                         <td class="px-6 py-3">
                             {% if r.tipo.value == 'recarga' %}
-                            <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">➕ Recarga</span>
+                            <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">➕ Recarga{% if r.metodo_pagamento == 'pix' %} Pix{% elif r.metodo_pagamento == 'cartao' %} Cartão{% endif %}</span>
                             {% elif r.tipo.value == 'remocao' %}
                             <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs">➖ Remoção</span>
                             {% else %}
                             <span class="bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full text-xs">⚙️ Ajuste</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-3">
+                            {% if r.status.value == 'aprovado' %}
+                            <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">✔ Aprovado</span>
+                            {% elif r.status.value == 'pendente' %}
+                            <span class="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-xs">⏳ Pendente</span>
+                            {% elif r.status.value == 'rejeitado' %}
+                            <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs">✖ Rejeitado</span>
+                            {% elif r.status.value == 'expirado' %}
+                            <span class="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full text-xs">⏱ Expirado</span>
+                            {% else %}
+                            <span class="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full text-xs">Cancelado</span>
                             {% endif %}
                         </td>
                         <td class="px-6 py-3 text-right font-semibold {% if r.tipo.value == 'recarga' %}text-ru-green{% else %}text-ru-red{% endif %}">

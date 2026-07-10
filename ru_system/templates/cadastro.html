@@ -5,15 +5,15 @@
 <div class="min-h-screen flex flex-col items-center justify-center px-4 py-12"
      style="background-color: #1A1A1A;">
 
-    <button onclick="toggleDarkMode()"
-        class="dm-icon fixed top-4 right-4 text-white/40 hover:text-white/80 transition p-2 rounded-lg hover:bg-white/10">
-    </button>
-
     <!-- Logo + título -->
     <div class="mb-10 text-center">
         <img src="/static/img/favicon.png" alt="UFCAT" class="w-14 h-14 mx-auto mb-5 drop-shadow-lg">
         <h1 class="text-4xl font-extrabold text-white tracking-widest uppercase">MEU RU</h1>
-        <p class="text-sm mt-2" style="color: #F47920;">Restaurante Universitário · UFCAT</p>
+        <div class="flex items-center justify-center gap-2.5 mt-2.5">
+            <span class="h-px w-8" style="background: linear-gradient(to right, transparent, #F4792055);"></span>
+            <p class="text-xs font-semibold uppercase tracking-widest" style="color: #F4792099;">Recarga de Créditos · Restaurante Universitário</p>
+            <span class="h-px w-8" style="background: linear-gradient(to left, transparent, #F4792055);"></span>
+        </div>
     </div>
 
     <!-- Card -->
@@ -32,7 +32,7 @@
             </div>
             {% endif %}
 
-            <form method="POST" action="/cadastro" id="form-cadastro">
+            <form method="POST" action="/cadastro" id="form-cadastro" novalidate>
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
                 <div class="mb-4">
@@ -67,7 +67,7 @@
 
                 <div class="mb-4">
                     <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2" for="telefone">
-                        Telefone / WhatsApp <span class="text-gray-300 normal-case font-normal">(opcional)</span>
+                        Telefone / WhatsApp <span class="text-gray-400 font-normal">(OPCIONAL)</span>
                     </label>
                     <input type="tel" id="telefone" name="telefone"
                         placeholder="(62) 99999-9999" autocomplete="tel"
@@ -76,13 +76,50 @@
                 </div>
 
                 <!-- Requisitos de senha -->
-                <div class="mb-4 p-3 rounded-xl text-sm" style="background-color: #FFF5EE;">
-                    <p class="font-semibold mb-2 text-xs uppercase tracking-wide" style="color: #F47920;">Requisitos da senha</p>
-                    <ul class="space-y-1 text-gray-500">
-                        <li id="req-len"   class="flex items-center gap-2"><span class="req-icon">⬜</span> Mínimo 8 caracteres</li>
-                        <li id="req-upper" class="flex items-center gap-2"><span class="req-icon">⬜</span> Pelo menos 1 letra maiúscula</li>
-                        <li id="req-num"   class="flex items-center gap-2"><span class="req-icon">⬜</span> Pelo menos 1 número</li>
-                        <li id="req-match" class="flex items-center gap-2"><span class="req-icon">⬜</span> Senhas coincidem</li>
+                <div class="mb-4 rounded-2xl overflow-hidden" style="border: 1px solid #F4792028; box-shadow: 0 4px 20px #F4792012;">
+                    <!-- Header -->
+                    <div class="px-4 pt-3.5 pb-3" style="background: linear-gradient(135deg, #1A0D05, #2C1508);">
+                        <div class="flex items-center gap-2.5 mb-2.5">
+                            <div class="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" style="background: #F4792035;">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" style="color: #F47920;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                </svg>
+                            </div>
+                            <span class="text-xs font-bold uppercase tracking-widest text-white">Força da senha</span>
+                        </div>
+                        <div class="flex gap-1.5" id="strength-dots">
+                            <span class="strength-dot h-1.5 flex-1 rounded-full transition-all duration-300" style="background: rgba(244,121,32,0.22);"></span>
+                            <span class="strength-dot h-1.5 flex-1 rounded-full transition-all duration-300" style="background: rgba(244,121,32,0.22);"></span>
+                            <span class="strength-dot h-1.5 flex-1 rounded-full transition-all duration-300" style="background: rgba(244,121,32,0.22);"></span>
+                            <span class="strength-dot h-1.5 flex-1 rounded-full transition-all duration-300" style="background: rgba(244,121,32,0.22);"></span>
+                        </div>
+                    </div>
+                    <!-- Requisitos -->
+                    <ul style="background: #FEF0E4;">
+                        <li id="req-len" class="req-item flex items-center gap-3 px-4 py-2.5 transition-all duration-300" style="border-bottom: 1px solid #F4792015;">
+                            <span class="req-circle flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-300" style="border-color: #F4792050;">
+                                <svg class="req-check w-2.5 h-2.5 text-white hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                            </span>
+                            <span class="text-xs font-semibold uppercase tracking-wide text-gray-400 transition-colors duration-300">Mínimo 8 caracteres</span>
+                        </li>
+                        <li id="req-upper" class="req-item flex items-center gap-3 px-4 py-2.5 transition-all duration-300" style="border-bottom: 1px solid #F4792015;">
+                            <span class="req-circle flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-300" style="border-color: #F4792050;">
+                                <svg class="req-check w-2.5 h-2.5 text-white hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                            </span>
+                            <span class="text-xs font-semibold uppercase tracking-wide text-gray-400 transition-colors duration-300">Pelo menos 1 letra maiúscula</span>
+                        </li>
+                        <li id="req-num" class="req-item flex items-center gap-3 px-4 py-2.5 transition-all duration-300" style="border-bottom: 1px solid #F4792015;">
+                            <span class="req-circle flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-300" style="border-color: #F4792050;">
+                                <svg class="req-check w-2.5 h-2.5 text-white hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                            </span>
+                            <span class="text-xs font-semibold uppercase tracking-wide text-gray-400 transition-colors duration-300">Pelo menos 1 número</span>
+                        </li>
+                        <li id="req-match" class="req-item flex items-center gap-3 px-4 py-2.5 transition-all duration-300">
+                            <span class="req-circle flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-300" style="border-color: #F4792050;">
+                                <svg class="req-check w-2.5 h-2.5 text-white hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                            </span>
+                            <span class="text-xs font-semibold uppercase tracking-wide text-gray-400 transition-colors duration-300">Senhas coincidem</span>
+                        </li>
                     </ul>
                 </div>
 
@@ -96,7 +133,10 @@
                             autocomplete="new-password"
                             class="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-900 text-sm placeholder-gray-300 transition focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 pr-11">
                         <button type="button" onclick="toggleSenha('nova_senha')"
-                            class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition">
+                            class="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200"
+                            style="color: #F47920; background: #F4792018;"
+                            onmouseover="this.style.background='#F4792035'; this.style.boxShadow='0 0 0 3px #F4792025';"
+                            onmouseout="this.style.background='#F4792018'; this.style.boxShadow='none';">
                             <svg id="eye-open-nova_senha" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
@@ -118,7 +158,10 @@
                             autocomplete="new-password"
                             class="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-900 text-sm placeholder-gray-300 transition focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 pr-11">
                         <button type="button" onclick="toggleSenha('confirmar_senha')"
-                            class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition">
+                            class="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200"
+                            style="color: #F47920; background: #F4792018;"
+                            onmouseover="this.style.background='#F4792035'; this.style.boxShadow='0 0 0 3px #F4792025';"
+                            onmouseout="this.style.background='#F4792018'; this.style.boxShadow='none';">
                             <svg id="eye-open-confirmar_senha" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
@@ -134,8 +177,7 @@
                     class="w-full text-white font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-2 text-sm"
                     style="background: linear-gradient(135deg, #F47920, #E03D3D);"
                     onmouseover="this.style.opacity='0.88'"
-                    onmouseout="this.style.opacity='1'"
-                    onclick="setLoading(this)">
+                    onmouseout="this.style.opacity='1'">
                     <span class="btn-text">Completar cadastro</span>
                     <span class="btn-loading hidden">
                         <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
@@ -147,21 +189,26 @@
                 </button>
             </form>
 
-            <div class="mt-6 text-center border-t border-gray-100 pt-5">
+            <div class="mt-6 border-t border-gray-100 pt-5 flex justify-center">
                 <a href="/login"
-                   class="text-sm font-medium transition"
-                   style="color: #F47920;"
-                   onmouseover="this.style.color='#D4640A'"
-                   onmouseout="this.style.color='#F47920'">
-                    Já tenho conta — Entrar
+                   class="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide px-4 py-2 rounded-xl transition-all duration-200"
+                   style="color: #F47920; background: #F4792012;"
+                   onmouseover="this.style.background='#F4792025'; this.style.boxShadow='0 0 0 2px #F4792030';"
+                   onmouseout="this.style.background='#F4792012'; this.style.boxShadow='none';">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                    Já tenho uma conta
                 </a>
             </div>
         </div>
     </div>
 
-    <p class="text-xs mt-10 text-center" style="color: #F47920BB;">
-        Sistema de Créditos · Restaurante Universitário UFCAT
-    </p>
+    <div class="flex items-center justify-center gap-2.5 mt-10">
+        <span class="h-px w-8" style="background: linear-gradient(to right, transparent, #F4792055);"></span>
+        <p class="text-xs font-semibold uppercase tracking-widest" style="color: #F4792066;">Universidade Federal de Catalão</p>
+        <span class="h-px w-8" style="background: linear-gradient(to left, transparent, #F4792055);"></span>
+    </div>
 </div>
 {% endblock %}
 
@@ -170,18 +217,48 @@
 function validarSenha() {
     const senha = document.getElementById('nova_senha').value;
     const confirmar = document.getElementById('confirmar_senha').value;
-    atualizarReq('req-len',   senha.length >= 8);
-    atualizarReq('req-upper', /[A-Z]/.test(senha));
-    atualizarReq('req-num',   /[0-9]/.test(senha));
-    atualizarReq('req-match', senha.length > 0 && senha === confirmar);
+
+    const checks = [
+        atualizarReq('req-len',   senha.length >= 8),
+        atualizarReq('req-upper', /[A-Z]/.test(senha)),
+        atualizarReq('req-num',   /[0-9]/.test(senha)),
+        atualizarReq('req-match', senha.length > 0 && senha === confirmar),
+    ];
+
+    const total = checks.filter(Boolean).length;
+    const dots = document.querySelectorAll('.strength-dot');
+    const cores = ['#E03D3D', '#F47920', '#F4A020', '#22c55e'];
+    dots.forEach((d, i) => {
+        if (i < total) {
+            d.style.backgroundColor = cores[total - 1] || '#F47920';
+            d.style.opacity = '1';
+        } else {
+            d.style.backgroundColor = 'rgba(244,121,32,0.22)';
+            d.style.opacity = '1';
+        }
+    });
 }
 
 function atualizarReq(id, ok) {
     const el = document.getElementById(id);
-    const icon = el.querySelector('.req-icon');
-    icon.textContent = ok ? '✅' : '⬜';
-    el.classList.toggle('text-green-600', ok);
-    el.classList.toggle('text-gray-500', !ok);
+    const circle = el.querySelector('.req-circle');
+    const check = el.querySelector('.req-check');
+    const span = el.querySelector('span:last-child');
+
+    if (ok) {
+        circle.style.background = 'linear-gradient(135deg, #F47920, #E03D3D)';
+        circle.style.borderColor = 'transparent';
+        check.classList.remove('hidden');
+        span.style.color = '#374151';
+        el.style.fontWeight = '500';
+    } else {
+        circle.style.background = '';
+        circle.style.borderColor = '#F4792050';
+        check.classList.add('hidden');
+        span.style.color = '#9CA3AF';
+        el.style.fontWeight = '';
+    }
+    return ok;
 }
 </script>
 {% endblock %}

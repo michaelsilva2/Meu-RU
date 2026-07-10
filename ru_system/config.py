@@ -38,7 +38,7 @@ from decimal import Decimal as _D
 PRECOS_REFEICAO: dict = {
     "bolsista":   _D("0.00"),
     "subsidiado": _D("4.00"),
-    "aluno":      _D("6.00"),
+    "integral":   _D("6.00"),
     "externo":    _D("16.00"),
 }
 
@@ -76,6 +76,18 @@ TWILIO_WHATSAPP_FROM = os.getenv("TWILIO_WHATSAPP_FROM", "whatsapp:+14155238886"
 # Ex: ADMIN_WHATSAPP_NUMEROS=11999990000,11988880000
 _numeros_raw = os.getenv("ADMIN_WHATSAPP_NUMEROS", "")
 ADMIN_WHATSAPP_NUMEROS: list[str] = [n.strip() for n in _numeros_raw.split(",") if n.strip()]
+
+# ── Pagamentos / Mercado Pago (Pix) ─────────────────────────────────────────
+MERCADOPAGO_ACCESS_TOKEN   = os.getenv("MERCADOPAGO_ACCESS_TOKEN", "")
+MERCADOPAGO_PUBLIC_KEY     = os.getenv("MERCADOPAGO_PUBLIC_KEY", "")
+MERCADOPAGO_WEBHOOK_SECRET = os.getenv("MERCADOPAGO_WEBHOOK_SECRET", "")
+
+# Minutos até uma cobrança Pix expirar se não for paga
+PIX_EXPIRACAO_MINUTOS = int(os.getenv("PIX_EXPIRACAO_MINUTOS", "30"))
+
+# Limites de valor para recarga self-service do aluno
+RECARGA_VALOR_MIN = _D(os.getenv("RECARGA_VALOR_MIN", "1.00"))
+RECARGA_VALOR_MAX = _D(os.getenv("RECARGA_VALOR_MAX", "500.00"))
 
 # ── Pico de movimento ────────────────────────────────────────────────────────
 # Quantidade mínima de entradas na janela para considerar pico

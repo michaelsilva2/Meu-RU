@@ -37,10 +37,48 @@ def _migrar_colunas_alunos():
         if "telefone" not in colunas:
             conn.execute(text("ALTER TABLE alunos ADD COLUMN telefone VARCHAR(20)"))
         if "categoria" not in colunas:
-            conn.execute(text("ALTER TABLE alunos ADD COLUMN categoria VARCHAR(20) NOT NULL DEFAULT 'aluno'"))
+            conn.execute(text("ALTER TABLE alunos ADD COLUMN categoria VARCHAR(20) NOT NULL DEFAULT 'integral'"))
+        if "cpf" not in colunas:
+            conn.execute(text("ALTER TABLE alunos ADD COLUMN cpf VARCHAR(14)"))
+        if "mp_customer_id" not in colunas:
+            conn.execute(text("ALTER TABLE alunos ADD COLUMN mp_customer_id VARCHAR(64)"))
         conn.commit()
 
 _migrar_colunas_alunos()
+
+
+# ─── Migração segura: colunas de pagamento Pix em historico_recargas ─────
+def _migrar_colunas_historico_recargas():
+    from sqlalchemy import text, inspect
+    with engine.connect() as conn:
+        inspector = inspect(engine)
+        colunas = [c["name"] for c in inspector.get_columns("historico_recargas")]
+
+        novas_colunas = {
+            "status": "VARCHAR(20) NOT NULL DEFAULT 'aprovado'",
+            "metodo_pagamento": "VARCHAR(20)",
+            "gateway_payment_id": "VARCHAR(64)",
+            "external_reference": "VARCHAR(36)",
+            "pix_copia_cola": "VARCHAR(1000)",
+            "pix_qr_base64": "TEXT",
+            "expira_em": "DATETIME",
+            "atualizado_em": "DATETIME",
+        }
+        for nome, tipo_sql in novas_colunas.items():
+            if nome not in colunas:
+                conn.execute(text(f"ALTER TABLE historico_recargas ADD COLUMN {nome} {tipo_sql}"))
+
+        conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ix_historico_recargas_gateway_payment_id "
+            "ON historico_recargas(gateway_payment_id)"
+        ))
+        conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ix_historico_recargas_external_reference "
+            "ON historico_recargas(external_reference)"
+        ))
+        conn.commit()
+
+_migrar_colunas_historico_recargas()
 
 # ─── Lifespan (scheduler) ─────────────────────────────────────────────────
 @asynccontextmanager

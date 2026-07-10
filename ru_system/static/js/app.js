@@ -74,6 +74,39 @@ function fecharModal(id) {
     if (modal) modal.classList.add('hidden');
 }
 
+
+// ─── Validação customizada de inputs (substitui o balão nativo do browser) ─
+
+function validarValorInput(input, mensagens = {}) {
+    if (!input) return;
+    const erroBox = document.getElementById(`erro-${input.id}`);
+    const erroTexto = erroBox ? erroBox.querySelector('.erro-texto') : null;
+
+    const marcarErro = (msg) => {
+        if (erroTexto) erroTexto.textContent = msg;
+        if (erroBox) erroBox.classList.remove('hidden');
+        input.classList.add('border-red-300', 'ring-2', 'ring-red-100');
+        input.classList.remove('border-gray-200');
+    };
+
+    const limparErro = () => {
+        if (erroBox) erroBox.classList.add('hidden');
+        input.classList.remove('border-red-300', 'ring-2', 'ring-red-100');
+        input.classList.add('border-gray-200');
+    };
+
+    input.addEventListener('invalid', (e) => {
+        e.preventDefault();
+        let msg = mensagens.padrao || 'Valor inválido.';
+        if (input.validity.valueMissing) msg = mensagens.obrigatorio || msg;
+        else if (input.validity.rangeOverflow) msg = mensagens.maximo || msg;
+        else if (input.validity.rangeUnderflow) msg = mensagens.minimo || msg;
+        marcarErro(msg);
+    });
+
+    input.addEventListener('input', limparErro);
+}
+
 // Fecha modal ao clicar fora dele
 document.addEventListener('click', function(e) {
     document.querySelectorAll('[id^="modal-"]').forEach(modal => {
@@ -127,6 +160,78 @@ document.addEventListener('DOMContentLoaded', function() {
         el.innerHTML = isDark ? _iconSun() : _iconMoon();
     });
 });
+
+
+// ─── Validação customizada de campos obrigatórios ────────────────────────
+
+function mostrarErroCampo(input, mensagem) {
+    limparErroCampo(input);
+    input.style.borderColor = '#F47920';
+    input.style.boxShadow   = '0 0 0 3px #F4792022';
+
+    const erro = document.createElement('p');
+    erro.className = 'campo-erro flex items-center gap-1 mt-1.5 text-xs font-medium';
+    erro.style.color = '#F47920';
+    erro.innerHTML = `<svg class="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+    </svg>${mensagem}`;
+    input.parentNode.appendChild(erro);
+
+    input.addEventListener('input', () => limparErroCampo(input), { once: true });
+}
+
+function limparErroCampo(input) {
+    input.style.borderColor = '';
+    input.style.boxShadow   = '';
+    input.parentNode.querySelectorAll('.campo-erro').forEach(e => e.remove());
+}
+
+function validarFormulario(form) {
+    let valido = true;
+    form.querySelectorAll('input[required], select[required], textarea[required]').forEach(input => {
+        if (input.type === 'hidden') return;
+        limparErroCampo(input);
+
+        if (!input.value.trim()) {
+            mostrarErroCampo(input, 'ESTE CAMPO É OBRIGATÓRIO');
+            if (valido) input.focus();
+            valido = false;
+            return;
+        }
+
+        if (input.type === 'email') {
+            const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(input.value.trim());
+            if (!emailValido) {
+                mostrarErroCampo(input, 'INFORME UM E-MAIL VÁLIDO (EX: NOME@DOMINIO.COM)');
+                if (valido) input.focus();
+                valido = false;
+            }
+        }
+    });
+    return valido;
+}
+
+function _setupValidacao() {
+    document.querySelectorAll('form[novalidate]').forEach(form => {
+        if (form._validacaoSetup) return;
+        form._validacaoSetup = true;
+        form.addEventListener('submit', function(e) {
+            if (!validarFormulario(form)) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+            } else {
+                const btn = form.querySelector('button[type="submit"]');
+                if (btn) setLoading(btn);
+            }
+        });
+    });
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _setupValidacao);
+} else {
+    _setupValidacao();
+}
 
 
 // ─── Busca com debounce ───────────────────────────────────────────────────

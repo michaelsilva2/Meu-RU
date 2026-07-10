@@ -1,0 +1,195 @@
+<!-- Widget Bot do RU — incluído em todas as páginas do aluno -->
+<div id="bot-widget" class="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+
+    <!-- Janela do chat -->
+    <div id="bot-janela" class="hidden rounded-2xl overflow-hidden shadow-2xl flex flex-col" style="width: 390px; border: 1px solid #F4792022; max-height: 90vh;">
+
+        <!-- Header -->
+        <div class="px-4 py-3.5 flex items-center gap-3 flex-shrink-0" style="background: linear-gradient(135deg, #1A0D05, #2C1508);">
+            <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style="background: #F4792030;">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" style="color: #F47920;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                </svg>
+            </div>
+            <div class="flex-1">
+                <p class="text-sm font-bold uppercase tracking-widest" style="color: #fff;">Assistente&nbsp;&nbsp;RU</p>
+                <div class="flex items-center gap-1.5 mt-0.5">
+                    <span class="w-2 h-2 rounded-full bg-green-400"></span>
+                    <p class="text-xs" style="color: rgba(255,255,255,0.55);">Online agora</p>
+                </div>
+            </div>
+            <button onclick="fecharBot()" class="text-white/40 hover:text-white transition text-2xl leading-none">&times;</button>
+        </div>
+
+        <!-- Mensagens -->
+        <div id="bot-chat" class="flex-1 p-4 space-y-3 overflow-y-auto" style="background:#F9F5F1; min-height: 300px;"></div>
+
+        <!-- Quick replies -->
+        <div id="bot-replies" class="px-3 pb-4 pt-2 flex flex-col gap-2 flex-shrink-0" style="background:#F9F5F1; border-top: 1px solid #F4792018;"></div>
+    </div>
+
+    <!-- Botão flutuante -->
+    <button onclick="toggleBot()"
+        class="w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-all duration-200"
+        style="background: linear-gradient(135deg, #F47920, #E03D3D);"
+        onmouseover="this.style.transform='scale(1.1)'; this.style.boxShadow='0 8px 25px #F4792060';"
+        onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='';">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-3 3-3-3z"/>
+        </svg>
+    </button>
+</div>
+
+<script>
+let botAberto = false, botIniciado = false;
+
+const BOT_ICON = `<div class="w-6 h-6 rounded-lg flex-shrink-0 flex items-center justify-center" style="background:linear-gradient(135deg,#F47920,#E03D3D);">
+    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-3 3-3-3z"/>
+    </svg></div>`;
+
+function toggleBot() {
+    const janela = document.getElementById('bot-janela');
+    if (botAberto) { fecharBot(); return; }
+    janela.classList.remove('hidden');
+    botAberto = true;
+    if (!botIniciado) { botIniciado = true; setTimeout(iniciarBot, 400); }
+}
+
+function fecharBot() {
+    document.getElementById('bot-janela').classList.add('hidden');
+    botAberto = false;
+}
+
+function iniciarBot() {
+    addMsgBot('Olá! 👋 No que posso te ajudar hoje?');
+    setTimeout(() => mostrarOpcoes(opcoesMenu()), 600);
+}
+
+function opcoesMenu() {
+    return [
+        { icone: '🌞', label: 'Cardápio — Almoço', acao: () => verCardapio('almoco') },
+        { icone: '🌙', label: 'Cardápio — Jantar',  acao: () => verCardapio('jantar') },
+        { icone: '📄', label: 'Cardápio do Mês',    acao: verCardapioPDF },
+        { icone: '⏰', label: 'Horários do RU',      acao: verHorarios },
+    ];
+}
+
+function voltarMenu() {
+    setTimeout(() => mostrarOpcoes([{ voltar: true, label: 'Voltar ao menu', acao: () => {
+        mostrarOpcoes([]);
+        setTimeout(() => { addMsgBot('O que mais posso te ajudar? 😊'); setTimeout(() => mostrarOpcoes(opcoesMenu()), 400); }, 300);
+    }}]), 400);
+}
+
+function addMsgBot(html) {
+    const chat = document.getElementById('bot-chat');
+    const div = document.createElement('div');
+    div.className = 'flex items-end gap-2';
+    div.innerHTML = `${BOT_ICON}<div class="max-w-[280px] px-4 py-3 rounded-2xl rounded-bl-sm leading-relaxed" style="background:white;border:1px solid #F4792018;color:#374151;font-size:15px;font-family:Inter,sans-serif;">${html}</div>`;
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+}
+
+function addMsgUser(texto) {
+    const chat = document.getElementById('bot-chat');
+    const div = document.createElement('div');
+    div.className = 'flex justify-end';
+    div.innerHTML = `<div class="max-w-[280px] px-4 py-3 rounded-2xl rounded-br-sm text-white font-medium" style="background:linear-gradient(135deg,#F47920,#E03D3D);font-size:15px;font-family:Inter,sans-serif;">${texto}</div>`;
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+}
+
+async function digitando() {
+    const chat = document.getElementById('bot-chat');
+    const div = document.createElement('div');
+    div.id = 'bot-typing';
+    div.className = 'flex items-end gap-2';
+    div.innerHTML = `${BOT_ICON}<div class="px-3 py-2.5 rounded-2xl rounded-bl-sm flex gap-1" style="background:white;border:1px solid #F4792018;">
+        <span class="w-1.5 h-1.5 rounded-full" style="background:#F47920;animation:bounce 1s infinite 0ms;"></span>
+        <span class="w-1.5 h-1.5 rounded-full" style="background:#F47920;animation:bounce 1s infinite 200ms;"></span>
+        <span class="w-1.5 h-1.5 rounded-full" style="background:#F47920;animation:bounce 1s infinite 400ms;"></span>
+    </div>`;
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+    await new Promise(r => setTimeout(r, 800));
+    div.remove();
+}
+
+function mostrarOpcoes(opcoes) {
+    const box = document.getElementById('bot-replies');
+    box.innerHTML = '';
+    opcoes.forEach(op => {
+        const btn = document.createElement('button');
+        if (op.voltar) {
+            btn.style.cssText = 'width:100%;display:flex;align-items:center;justify-content:center;gap:6px;padding:11px 16px;border-radius:14px;border:1px solid #F4792040;background:#FFF4EC;cursor:pointer;transition:all 0.15s;font-size:14px;font-weight:700;color:#F47920;letter-spacing:0.01em;font-family:Inter,sans-serif;';
+            btn.innerHTML = `<span style="font-size:14px;">↩</span><span>Voltar ao menu</span>`;
+            btn.onmouseover = () => { btn.style.background='#FFE8D4'; btn.style.borderColor='#F4792070'; };
+            btn.onmouseout  = () => { btn.style.background='#FFF4EC'; btn.style.borderColor='#F4792040'; };
+        } else {
+            btn.style.cssText = 'width:100%;display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:16px;border:1px solid #EDE8E3;background:white;cursor:pointer;transition:all 0.15s;box-shadow:0 1px 4px rgba(0,0,0,0.07);text-align:left;font-family:Inter,sans-serif;';
+            btn.innerHTML = `
+                <span style="width:36px;height:36px;border-radius:11px;background:linear-gradient(135deg,#FFF0E0,#FFE4CC);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">${op.icone}</span>
+                <span style="flex:1;font-size:15px;font-weight:700;color:#1F2937;letter-spacing:-0.01em;">${op.label}</span>
+                <span style="font-size:18px;color:#F47920;font-weight:700;line-height:1;">›</span>`;
+            btn.onmouseover = () => { btn.style.background='#FFF8F4'; btn.style.borderColor='#F4792050'; btn.style.boxShadow='0 3px 10px rgba(244,121,32,0.13)'; };
+            btn.onmouseout  = () => { btn.style.background='white'; btn.style.borderColor='#EDE8E3'; btn.style.boxShadow='0 1px 4px rgba(0,0,0,0.07)'; };
+        }
+        btn.onclick = async () => {
+            mostrarOpcoes([]);
+            addMsgUser(op.voltar ? op.label : `${op.icone} ${op.label}`);
+            await digitando();
+            op.acao();
+        };
+        box.appendChild(btn);
+    });
+}
+
+async function verCardapio(tipo) {
+    try {
+        const res = await fetch('/aluno/cardapio-hoje');
+        const dados = await res.json();
+        const c = (dados.cardapio || {})[tipo];
+        const info = tipo === 'almoco'
+            ? { emoji: '🌞', label: 'Almoço', horario: '11h – 14h' }
+            : { emoji: '🌙', label: 'Jantar',  horario: '19h – 21h' };
+
+        let html = `<strong>${info.emoji} Cardápio do ${info.label}</strong><br><span style="color:#9CA3AF;font-size:10px;">⏰ ${info.horario}</span><br><br>`;
+        if (c) {
+            if (c.prato_principal) html += `🥩 <b>Proteína:</b> ${c.prato_principal}<br>`;
+            if (c.acompanhamentos) html += `🥗 <b>Acomp.:</b> ${c.acompanhamentos}<br>`;
+            if (c.sobremesa)       html += `🍮 <b>Sobremesa:</b> ${c.sobremesa}<br>`;
+            if (c.observacao)      html += `🌿 <b>Vegetariano:</b> ${c.observacao}<br>`;
+        } else {
+            html += `<span style="color:#9CA3AF;">Cardápio ainda não cadastrado.</span>`;
+        }
+        addMsgBot(html);
+    } catch {
+        addMsgBot('Não consegui buscar o cardápio agora. 😕');
+    }
+    voltarMenu();
+}
+
+function verHorarios() {
+    addMsgBot(`<strong>⏰ Horários do RU</strong><br><br>
+        🌞 <b>Almoço:</b> 11h às 14h<br>
+        🌙 <b>Jantar:</b> 19h às 21h<br><br>
+        <span style="color:#6B7280;font-weight:600;">Segunda a sexta, exceto feriados.</span>`);
+    voltarMenu();
+}
+
+function verCardapioPDF() {
+    addMsgBot(`<strong>📄 Cardápio do Mês</strong><br><br>
+        Acesse o cardápio completo em PDF:<br><br>
+        <a href="https://plone.ufcat.edu.br/prpe/pt-br/cardapio-ru-jan-2.pdf" target="_blank"
+           style="display:inline-flex;align-items:center;gap:7px;background:linear-gradient(135deg,#F47920,#E03D3D);color:white;font-weight:700;font-size:12px;padding:8px 14px;border-radius:10px;text-decoration:none;margin-top:2px;">
+            📄 Janeiro →
+        </a>&nbsp;
+        <a href="https://plone.ufcat.edu.br/prpe/pt-br/cardapio-ru-fev-1-1.pdf" target="_blank"
+           style="display:inline-flex;align-items:center;gap:7px;background:linear-gradient(135deg,#F47920,#E03D3D);color:white;font-weight:700;font-size:12px;padding:8px 14px;border-radius:10px;text-decoration:none;margin-top:2px;">
+            📄 Fevereiro →
+        </a>`);
+    voltarMenu();
+}
+
+</script>

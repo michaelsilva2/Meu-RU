@@ -3,7 +3,7 @@ Modelos ORM do SQLAlchemy — mapeamento das tabelas do banco de dados.
 """
 from datetime import datetime
 from sqlalchemy import (
-    Column, Integer, String, Boolean, DateTime, Numeric, Date,
+    Column, Integer, String, Boolean, DateTime, Numeric, Date, Text,
     ForeignKey, Enum as SAEnum, UniqueConstraint
 )
 from sqlalchemy.orm import relationship
@@ -27,8 +27,16 @@ class TipoRefeicao(str, enum.Enum):
 class CategoriaAluno(str, enum.Enum):
     bolsista   = "bolsista"    # isento — R$ 0,00
     subsidiado = "subsidiado"  # R$ 4,00
-    aluno      = "aluno"       # R$ 6,00
+    integral   = "integral"    # R$ 6,00
     externo    = "externo"     # R$ 16,00
+
+
+class StatusRecarga(str, enum.Enum):
+    aprovado  = "aprovado"    # padrão: cobre linhas antigas e ajustes manuais do admin
+    pendente  = "pendente"    # cobrança Pix criada, aguardando pagamento
+    rejeitado = "rejeitado"
+    expirado  = "expirado"
+    cancelado = "cancelado"
 
 
 class TipoRecarga(str, enum.Enum):
@@ -55,10 +63,12 @@ class Aluno(Base):
     senha_hash = Column(String(255), nullable=False)
     creditos = Column(Numeric(10, 2), default=0.0, nullable=False)
     telefone  = Column(String(20), nullable=True)
-    categoria = Column(SAEnum(CategoriaAluno), default=CategoriaAluno.aluno, nullable=False)
+    categoria = Column(SAEnum(CategoriaAluno), default=CategoriaAluno.integral, nullable=False)
     primeiro_acesso = Column(Boolean, default=True, nullable=False)
     ativo = Column(Boolean, default=True, nullable=False)
     criado_em = Column(DateTime, default=datetime.utcnow, nullable=False)
+    cpf = Column(String(14), nullable=True)                # pedido no 1º pagamento por cartão
+    mp_customer_id = Column(String(64), nullable=True)      # cliente no Mercado Pago (cartões salvos)
 
     # Relacionamentos
     refeicoes = relationship("HistoricoRefeicao", back_populates="aluno", lazy="dynamic")
@@ -108,6 +118,16 @@ class HistoricoRecarga(Base):
     valor = Column(Numeric(10, 2), nullable=False)
     observacao = Column(String(500), nullable=True)
     data_hora = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # ── Pagamento via Pix (Mercado Pago) ──────────────────────────────────
+    status = Column(SAEnum(StatusRecarga), default=StatusRecarga.aprovado, nullable=False)
+    metodo_pagamento = Column(String(20), nullable=True)          # "pix" | null/"manual" p/ ajustes do admin
+    gateway_payment_id = Column(String(64), nullable=True)        # id do pagamento no Mercado Pago
+    external_reference = Column(String(36), nullable=True)        # UUID gerado por nós, correlaciona com o webhook
+    pix_copia_cola = Column(String(1000), nullable=True)
+    pix_qr_base64 = Column(Text, nullable=True)
+    expira_em = Column(DateTime, nullable=True)
+    atualizado_em = Column(DateTime, nullable=True)
 
     # Relacionamentos
     aluno = relationship("Aluno", back_populates="recargas")

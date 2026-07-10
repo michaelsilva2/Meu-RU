@@ -17,7 +17,7 @@ $tag = Get-Date -Format "v-yyyy-MM-dd-HHmm"
 git add -A
 git commit -m "[$timestamp] $mensagem"
 git tag $tag
-git push origin master
-git push origin $tag
 
-Write-Host "Versao salva com tag: $tag" -ForegroundColor Green
+Write-Host "Versao salva localmente com tag: $tag" -ForegroundColor Green
+Write-Host "Para ver todas as versoes: git tag" -ForegroundColor DarkGray
+Write-Host "Para voltar a uma versao: git checkout <tag>" -ForegroundColor DarkGray
