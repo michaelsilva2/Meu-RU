@@ -12,3 +12,4 @@ google-genai>=1.0.0
 twilio>=9.0.0
 apscheduler>=3.10.0
 qrcode[pil]>=7.4.2
+psycopg2-binary>=2.9.9
