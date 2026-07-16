@@ -10,7 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sienna-accessibility@latest/dist/sienna-accessibility.umd.js" defer></script>
     <link rel="icon" type="image/png" href="/static/img/favicon.png">
-    <link rel="stylesheet" href="/static/css/custom.css">
+    <link rel="stylesheet" href="/static/css/custom.css?v=2">
     <!-- Aplica tema ANTES de renderizar para evitar flash -->
     <script>
         (function() {
@@ -41,6 +41,32 @@
 <body class="bg-gray-50 dark:bg-neutral-900 min-h-screen font-sans antialiased transition-colors duration-200">
 
 <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2"></div>
+
+<!-- Modal de confirmação (substitui o confirm() nativo do navegador) -->
+<div id="modal-confirmacao" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+        <div class="flex items-start gap-3 mb-6">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style="background: linear-gradient(135deg, #F47920, #E03D3D);">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+                </svg>
+            </div>
+            <p id="modal-confirmacao-texto" class="text-gray-700 font-medium text-sm mt-2"></p>
+        </div>
+        <div class="flex gap-3">
+            <button type="button" onclick="_fecharConfirmacao()"
+                class="flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-sm font-medium">
+                Cancelar
+            </button>
+            <button type="button" onclick="_confirmarConfirmacao()"
+                class="flex-1 py-2.5 text-white rounded-lg transition text-sm font-bold"
+                style="background: linear-gradient(135deg, #F47920, #E03D3D);"
+                onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+                Confirmar
+            </button>
+        </div>
+    </div>
+</div>
 
 {% block body %}{% endblock %}
 

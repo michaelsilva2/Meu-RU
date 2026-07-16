@@ -22,10 +22,10 @@
         </div>
 
         <!-- Mensagens -->
-        <div id="bot-chat" class="flex-1 p-4 space-y-3 overflow-y-auto" style="background:#F9F5F1; min-height: 300px;"></div>
+        <div id="bot-chat" class="flex-1 p-4 space-y-3 overflow-y-auto bot-surface" style="min-height: 300px;"></div>
 
         <!-- Quick replies -->
-        <div id="bot-replies" class="px-3 pb-4 pt-2 flex flex-col gap-2 flex-shrink-0" style="background:#F9F5F1; border-top: 1px solid #F4792018;"></div>
+        <div id="bot-replies" class="px-3 pb-4 pt-2 flex flex-col gap-2 flex-shrink-0 overflow-y-auto bot-surface" style="border-top: 1px solid #F4792018; max-height: 280px;"></div>
     </div>
 
     <!-- Botão flutuante -->
@@ -68,10 +68,16 @@ function iniciarBot() {
 
 function opcoesMenu() {
     return [
-        { icone: '🌞', label: 'Cardápio — Almoço', acao: () => verCardapio('almoco') },
-        { icone: '🌙', label: 'Cardápio — Jantar',  acao: () => verCardapio('jantar') },
-        { icone: '📄', label: 'Cardápio do Mês',    acao: verCardapioPDF },
+        { icone: '🌞', label: 'Cardápio do Almoço', acao: () => verCardapio('almoco') },
+        { icone: '🌙', label: 'Cardápio do Jantar',  acao: () => verCardapio('jantar') },
+        { icone: '📅', label: 'Cardápio do Almoço de Amanhã', acao: () => verCardapio('almoco', 'amanha') },
         { icone: '⏰', label: 'Horários do RU',      acao: verHorarios },
+        { icone: '🧾', label: 'Minhas últimas refeições', acao: verUltimasRefeicoes },
+        { icone: '📱', label: 'Como usar o código de acesso', acao: verComoFuncionaCodigo },
+        { icone: '💳', label: 'Como recarregar créditos', acao: verComoRecarregar },
+        { icone: '⭐', label: 'Avaliar minha última refeição', acao: verAvaliacao },
+        { icone: '💡', label: 'Mandar uma sugestão', acao: verSugestao },
+        { icone: '💬', label: 'Falar com o RU', acao: verContato },
     ];
 }
 
@@ -86,7 +92,7 @@ function addMsgBot(html) {
     const chat = document.getElementById('bot-chat');
     const div = document.createElement('div');
     div.className = 'flex items-end gap-2';
-    div.innerHTML = `${BOT_ICON}<div class="max-w-[280px] px-4 py-3 rounded-2xl rounded-bl-sm leading-relaxed" style="background:white;border:1px solid #F4792018;color:#374151;font-size:15px;font-family:Inter,sans-serif;">${html}</div>`;
+    div.innerHTML = `${BOT_ICON}<div class="max-w-[280px] px-4 py-3 rounded-2xl rounded-bl-sm leading-relaxed bot-bubble-bot">${html}</div>`;
     chat.appendChild(div);
     chat.scrollTop = chat.scrollHeight;
 }
@@ -105,7 +111,7 @@ async function digitando() {
     const div = document.createElement('div');
     div.id = 'bot-typing';
     div.className = 'flex items-end gap-2';
-    div.innerHTML = `${BOT_ICON}<div class="px-3 py-2.5 rounded-2xl rounded-bl-sm flex gap-1" style="background:white;border:1px solid #F4792018;">
+    div.innerHTML = `${BOT_ICON}<div class="px-3 py-2.5 rounded-2xl rounded-bl-sm flex gap-1 bot-bubble-bot">
         <span class="w-1.5 h-1.5 rounded-full" style="background:#F47920;animation:bounce 1s infinite 0ms;"></span>
         <span class="w-1.5 h-1.5 rounded-full" style="background:#F47920;animation:bounce 1s infinite 200ms;"></span>
         <span class="w-1.5 h-1.5 rounded-full" style="background:#F47920;animation:bounce 1s infinite 400ms;"></span>
@@ -122,18 +128,14 @@ function mostrarOpcoes(opcoes) {
     opcoes.forEach(op => {
         const btn = document.createElement('button');
         if (op.voltar) {
-            btn.style.cssText = 'width:100%;display:flex;align-items:center;justify-content:center;gap:6px;padding:11px 16px;border-radius:14px;border:1px solid #F4792040;background:#FFF4EC;cursor:pointer;transition:all 0.15s;font-size:14px;font-weight:700;color:#F47920;letter-spacing:0.01em;font-family:Inter,sans-serif;';
+            btn.className = 'bot-voltar-btn';
             btn.innerHTML = `<span style="font-size:14px;">↩</span><span>Voltar ao menu</span>`;
-            btn.onmouseover = () => { btn.style.background='#FFE8D4'; btn.style.borderColor='#F4792070'; };
-            btn.onmouseout  = () => { btn.style.background='#FFF4EC'; btn.style.borderColor='#F4792040'; };
         } else {
-            btn.style.cssText = 'width:100%;display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:16px;border:1px solid #EDE8E3;background:white;cursor:pointer;transition:all 0.15s;box-shadow:0 1px 4px rgba(0,0,0,0.07);text-align:left;font-family:Inter,sans-serif;';
+            btn.className = 'bot-option-btn';
             btn.innerHTML = `
-                <span style="width:36px;height:36px;border-radius:11px;background:linear-gradient(135deg,#FFF0E0,#FFE4CC);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">${op.icone}</span>
-                <span style="flex:1;font-size:15px;font-weight:700;color:#1F2937;letter-spacing:-0.01em;">${op.label}</span>
-                <span style="font-size:18px;color:#F47920;font-weight:700;line-height:1;">›</span>`;
-            btn.onmouseover = () => { btn.style.background='#FFF8F4'; btn.style.borderColor='#F4792050'; btn.style.boxShadow='0 3px 10px rgba(244,121,32,0.13)'; };
-            btn.onmouseout  = () => { btn.style.background='white'; btn.style.borderColor='#EDE8E3'; btn.style.boxShadow='0 1px 4px rgba(0,0,0,0.07)'; };
+                <span class="bot-option-icon">${op.icone}</span>
+                <span class="bot-option-label">${op.label}</span>
+                <span class="bot-option-arrow">›</span>`;
         }
         btn.onclick = async () => {
             mostrarOpcoes([]);
@@ -145,19 +147,23 @@ function mostrarOpcoes(opcoes) {
     });
 }
 
-async function verCardapio(tipo) {
+async function verCardapio(tipo, dia = 'hoje') {
     try {
-        const res = await fetch('/aluno/cardapio-hoje');
+        const res = await fetch(`/aluno/cardapio-hoje?dia=${dia}`);
         const dados = await res.json();
         const c = (dados.cardapio || {})[tipo];
         const info = tipo === 'almoco'
             ? { emoji: '🌞', label: 'Almoço', horario: '11h – 14h' }
             : { emoji: '🌙', label: 'Jantar',  horario: '19h – 21h' };
+        const labelDia = dia === 'amanha' ? 'de Amanhã' : 'de Hoje';
 
-        let html = `<strong>${info.emoji} Cardápio do ${info.label}</strong><br><span style="color:#9CA3AF;font-size:10px;">⏰ ${info.horario}</span><br><br>`;
+        let html = `<strong>${info.emoji} Cardápio do ${info.label} ${labelDia}</strong><br><span style="color:#9CA3AF;font-size:10px;">⏰ ${info.horario}</span><br><br>`;
         if (c) {
             if (c.prato_principal) html += `🥩 <b>Proteína:</b> ${c.prato_principal}<br>`;
-            if (c.acompanhamentos) html += `🥗 <b>Acomp.:</b> ${c.acompanhamentos}<br>`;
+            if (c.arroz)           html += `🍚 <b>Arroz:</b> ${c.arroz}<br>`;
+            if (c.feijao)          html += `🫘 <b>Feijão:</b> ${c.feijao}<br>`;
+            if (c.legumes)         html += `🥦 <b>Legumes:</b> ${c.legumes}<br>`;
+            if (c.salada)          html += `🥗 <b>Salada:</b> ${c.salada}<br>`;
             if (c.sobremesa)       html += `🍮 <b>Sobremesa:</b> ${c.sobremesa}<br>`;
             if (c.observacao)      html += `🌿 <b>Vegetariano:</b> ${c.observacao}<br>`;
         } else {
@@ -178,16 +184,160 @@ function verHorarios() {
     voltarMenu();
 }
 
-function verCardapioPDF() {
-    addMsgBot(`<strong>📄 Cardápio do Mês</strong><br><br>
-        Acesse o cardápio completo em PDF:<br><br>
-        <a href="https://plone.ufcat.edu.br/prpe/pt-br/cardapio-ru-jan-2.pdf" target="_blank"
+async function verUltimasRefeicoes() {
+    try {
+        const res = await fetch('/aluno/historico-recente');
+        const dados = await res.json();
+        const refs = dados.refeicoes || [];
+
+        if (refs.length === 0) {
+            addMsgBot('Você ainda não registrou nenhuma refeição por aqui. 🍽️');
+        } else {
+            let html = `<strong>🧾 Últimas refeições</strong><br><br>`;
+            refs.forEach(r => {
+                const data = new Date(r.data_hora + 'Z');
+                const dataFmt = data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+                const horaFmt = data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                const emoji = r.tipo === 'almoco' ? '🌞' : '🌙';
+                const label = r.tipo === 'almoco' ? 'Almoço' : 'Jantar';
+                const custo = parseFloat(r.custo) > 0 ? `R$ ${parseFloat(r.custo).toFixed(2).replace('.', ',')}` : 'gratuita';
+                html += `${emoji} <b>${label}</b> — ${dataFmt} às ${horaFmt} · ${custo}<br>`;
+            });
+            html += `<br><span style="color:#9CA3AF;font-size:11px;">Histórico completo na tela inicial.</span>`;
+            addMsgBot(html);
+        }
+    } catch {
+        addMsgBot('Não consegui buscar seu histórico agora. 😕');
+    }
+    voltarMenu();
+}
+
+function verComoFuncionaCodigo() {
+    addMsgBot(`<strong>📱 Código de acesso</strong><br><br>
+        Na tela inicial tem o botão <b>"Mostrar código de acesso"</b> — ele gera um código que se renova sozinho a cada poucos segundos.<br><br>
+        Mostre a tela pro funcionário na entrada do RU: ele lê o código e sua refeição já é registrada na hora. Cada código vale só uma vez, então print ou compartilhar não funciona. 🔒`);
+    voltarMenu();
+}
+
+function verComoRecarregar() {
+    addMsgBot(`<strong>💳 Como recarregar</strong><br><br>
+        No botão <b>"Recarregar créditos"</b> da tela inicial, escolha um valor entre R$ 1,00 a R$ 500,00.<br><br>
+        <b>💠 Pix:</b> gera um QR code e código copia-e-cola. O saldo entra automaticamente assim que o pagamento é aprovado.<br><br>
+        <b>💳 Cartão:</b> escolha entre <b>crédito</b> ou <b>débito</b>, confirme seu CPF e os dados do cartão. Aprovação na hora. Da segunda vez em diante, seu cartão fica salvo e você só escolhe qual usar. 💰`);
+    voltarMenu();
+}
+
+function mostrarNotas(callback) {
+    const box = document.getElementById('bot-replies');
+    box.innerHTML = '';
+    for (let n = 1; n <= 5; n++) {
+        const btn = document.createElement('button');
+        btn.className = 'bot-option-btn';
+        btn.innerHTML = `<span class="bot-option-icon">${n}</span><span class="bot-option-label">${'⭐'.repeat(n)}</span>`;
+        btn.onclick = () => { box.innerHTML = ''; callback(n); };
+        box.appendChild(btn);
+    }
+}
+
+function mostrarCaixaTexto(callback, skipLabel = 'Pular') {
+    const box = document.getElementById('bot-replies');
+    box.innerHTML = `
+        <input id="bot-input-texto" type="text" placeholder="Escreva aqui..."
+               style="width:100%;box-sizing:border-box;padding:10px 14px;border-radius:14px;border:1px solid #EDE8E3;font-family:Inter,sans-serif;font-size:14px;margin-bottom:8px;">
+        <div style="display:flex;gap:8px;">
+            <button id="bot-btn-pular" class="bot-voltar-btn" style="flex:1;"><span>${skipLabel}</span></button>
+            <button id="bot-btn-enviar" style="flex:1;background:linear-gradient(135deg,#F47920,#E03D3D);color:white;border:none;border-radius:14px;font-weight:700;font-size:14px;padding:11px 16px;cursor:pointer;font-family:Inter,sans-serif;">Enviar</button>
+        </div>`;
+    document.getElementById('bot-btn-pular').onclick = () => { box.innerHTML = ''; callback(''); };
+    document.getElementById('bot-btn-enviar').onclick = () => {
+        const val = document.getElementById('bot-input-texto').value.trim();
+        box.innerHTML = '';
+        callback(val);
+    };
+}
+
+function verAvaliacao() {
+    fetch('/aluno/avaliacao-pendente')
+        .then(r => r.json())
+        .then(dados => {
+            if (!dados.pendente) {
+                addMsgBot('Você não tem nenhuma refeição pendente pra avaliar no momento. 😊');
+                voltarMenu();
+                return;
+            }
+            addMsgBot('⭐ Qual nota você dá pra <b>comida</b> da sua última refeição?');
+            mostrarNotas((notaComida) => {
+                addMsgUser(`${notaComida} ⭐`);
+                digitando().then(() => {
+                    addMsgBot('E o <b>atendimento/serviço</b>, qual nota?');
+                    mostrarNotas((notaServico) => {
+                        addMsgUser(`${notaServico} ⭐`);
+                        digitando().then(() => {
+                            addMsgBot('Quer deixar uma sugestão? (opcional)');
+                            mostrarCaixaTexto(async (sugestaoTexto) => {
+                                addMsgUser(sugestaoTexto || 'Pular');
+                                await digitando();
+                                try {
+                                    const res = await fetch('/aluno/avaliacao', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            nota_comida: notaComida,
+                                            nota_servico: notaServico,
+                                            sugestao: sugestaoTexto,
+                                            csrf_token: '{{ csrf_token }}',
+                                        }),
+                                    });
+                                    const d = await res.json();
+                                    if (d.ok) addMsgBot('Obrigado pelo feedback! 😊 Sua opinião ajuda a melhorar o RU.');
+                                    else addMsgBot('Não consegui registrar sua avaliação agora. Tenta de novo mais tarde.');
+                                } catch {
+                                    addMsgBot('Erro de conexão. Tenta de novo mais tarde.');
+                                }
+                                voltarMenu();
+                            });
+                        });
+                    });
+                });
+            });
+        })
+        .catch(() => { addMsgBot('Não consegui verificar agora. Tenta de novo mais tarde.'); voltarMenu(); });
+}
+
+function verSugestao() {
+    addMsgBot('💡 Manda sua sugestão pra gente:');
+    mostrarCaixaTexto(async (texto) => {
+        if (!texto) {
+            addMsgUser('Cancelar');
+            await digitando();
+            addMsgBot('Sem problemas! Se mudar de ideia, é só chamar de novo. 😊');
+            voltarMenu();
+            return;
+        }
+        addMsgUser(texto);
+        await digitando();
+        try {
+            const res = await fetch('/aluno/sugestao', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sugestao: texto, csrf_token: '{{ csrf_token }}' }),
+            });
+            const d = await res.json();
+            if (d.ok) addMsgBot('Sugestão registrada, muito obrigado! 🙌');
+            else addMsgBot('Não consegui registrar agora. Tenta de novo mais tarde.');
+        } catch {
+            addMsgBot('Erro de conexão. Tenta de novo mais tarde.');
+        }
+        voltarMenu();
+    }, 'Cancelar');
+}
+
+function verContato() {
+    addMsgBot(`<strong>💬 Fala com a gente</strong><br><br>
+        Dúvida que eu não consigo resolver? Escreva o que você está enfrentando por email:<br><br>
+        <a href="https://mail.google.com/mail/?view=cm&fs=1&to=meuru.ufcat@gmail.com&su=Suporte%20-%20Meu%20RU" target="_blank"
            style="display:inline-flex;align-items:center;gap:7px;background:linear-gradient(135deg,#F47920,#E03D3D);color:white;font-weight:700;font-size:12px;padding:8px 14px;border-radius:10px;text-decoration:none;margin-top:2px;">
-            📄 Janeiro →
-        </a>&nbsp;
-        <a href="https://plone.ufcat.edu.br/prpe/pt-br/cardapio-ru-fev-1-1.pdf" target="_blank"
-           style="display:inline-flex;align-items:center;gap:7px;background:linear-gradient(135deg,#F47920,#E03D3D);color:white;font-weight:700;font-size:12px;padding:8px 14px;border-radius:10px;text-decoration:none;margin-top:2px;">
-            📄 Fevereiro →
+            📧 meuru.ufcat@gmail.com
         </a>`);
     voltarMenu();
 }

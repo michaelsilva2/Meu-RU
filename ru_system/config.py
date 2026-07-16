@@ -64,6 +64,11 @@ FERIADOS_NACIONAIS: set[_date] = {
 RATE_LIMIT_MAX_TENTATIVAS = 5
 RATE_LIMIT_JANELA_MINUTOS = 15
 
+# ── QR code de acesso ────────────────────────────────────────────────────────
+# Curto o suficiente pra inviabilizar print/reenvio, longo o suficiente pra dar
+# tempo de escanear na fila.
+QRCODE_TTL_SEGUNDOS = int(os.getenv("QRCODE_TTL_SEGUNDOS", "20"))
+
 # ── WhatsApp / Twilio ────────────────────────────────────────────────────────
 TWILIO_ACCOUNT_SID   = os.getenv("TWILIO_ACCOUNT_SID", "")
 TWILIO_AUTH_TOKEN    = os.getenv("TWILIO_AUTH_TOKEN", "")
@@ -77,13 +82,15 @@ TWILIO_WHATSAPP_FROM = os.getenv("TWILIO_WHATSAPP_FROM", "whatsapp:+14155238886"
 _numeros_raw = os.getenv("ADMIN_WHATSAPP_NUMEROS", "")
 ADMIN_WHATSAPP_NUMEROS: list[str] = [n.strip() for n in _numeros_raw.split(",") if n.strip()]
 
-# ── Pagamentos / Mercado Pago (Pix) ─────────────────────────────────────────
-MERCADOPAGO_ACCESS_TOKEN   = os.getenv("MERCADOPAGO_ACCESS_TOKEN", "")
-MERCADOPAGO_PUBLIC_KEY     = os.getenv("MERCADOPAGO_PUBLIC_KEY", "")
-MERCADOPAGO_WEBHOOK_SECRET = os.getenv("MERCADOPAGO_WEBHOOK_SECRET", "")
+# ── Pagamentos (Pix / cartão simulados) ─────────────────────────────────────
+# Não há gateway real: o Pix e o cartão são simulados localmente em payments.py.
 
 # Minutos até uma cobrança Pix expirar se não for paga
 PIX_EXPIRACAO_MINUTOS = int(os.getenv("PIX_EXPIRACAO_MINUTOS", "30"))
+
+# Segundos até uma cobrança Pix pendente se aprovar sozinha (simula o tempo
+# de um aluno abrir o app do banco e escanear o QR code)
+PAGAMENTO_SIMULADO_DELAY_SEGUNDOS = int(os.getenv("PAGAMENTO_SIMULADO_DELAY_SEGUNDOS", "8"))
 
 # Limites de valor para recarga self-service do aluno
 RECARGA_VALOR_MIN = _D(os.getenv("RECARGA_VALOR_MIN", "1.00"))
@@ -93,6 +100,9 @@ RECARGA_VALOR_MAX = _D(os.getenv("RECARGA_VALOR_MAX", "500.00"))
 # Quantidade mínima de entradas na janela para considerar pico
 LIMIAR_PICO: int = int(os.getenv("LIMIAR_PICO", "15"))
 # Janela de tempo (em minutos) para contar as entradas
-JANELA_PICO_MIN: int = int(os.getenv("JANELA_PICO_MIN", "10"))
+JANELA_PICO_MIN: int = int(os.getenv("JANELA_PICO_MIN", "20"))
 # Intervalo mínimo entre alertas de pico (em minutos) para evitar spam
 INTERVALO_ALERTA_PICO_MIN: int = int(os.getenv("INTERVALO_ALERTA_PICO_MIN", "15"))
+
+# ── Google Gemini (leitura do cardápio a partir de foto/story) ──────────────
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")

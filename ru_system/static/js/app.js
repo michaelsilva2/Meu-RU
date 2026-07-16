@@ -2,6 +2,140 @@
  * app.js — Funções utilitárias do sistema RU
  */
 
+// ─── Toast flutuante (padrão de notificação — cartão no canto superior direito) ─
+
+document.addEventListener('DOMContentLoaded', function() {
+    const msgToast = document.getElementById('msg-toast');
+    if (!msgToast) return;
+
+    requestAnimationFrame(() => {
+        const bar = document.getElementById('toast-bar');
+        if (bar) bar.style.width = '0%';
+    });
+
+    if (!msgToast.dataset.persist) {
+        setTimeout(() => {
+            msgToast.style.transition = 'opacity .35s, transform .35s';
+            msgToast.style.opacity = '0';
+            msgToast.style.transform = 'translateX(24px)';
+            setTimeout(() => msgToast.remove(), 380);
+        }, 4000);
+    }
+});
+
+function mostrarAlertaFlutuante(iconePath, titulo, subtitulo) {
+    const id = 'msg-toast-flutuante-' + Date.now();
+    const alerta = document.createElement('div');
+    alerta.id = id;
+    alerta.style.cssText = 'position:fixed;top:80px;right:24px;z-index:9999;width:310px;border-radius:18px;background:white;box-shadow:0 24px 60px rgba(0,0,0,0.13);overflow:hidden;animation:toastSlide .3s ease;';
+    alerta.innerHTML = `
+        <div style="display:flex;align-items:center;gap:14px;padding:16px 18px;">
+            <div style="width:42px;height:42px;border-radius:13px;background:linear-gradient(135deg,#22C55E,#16A34A);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="${iconePath}"/>
+                </svg>
+            </div>
+            <div style="flex:1;min-width:0;">
+                <p style="font-weight:800;font-size:14px;color:#111827;margin:0;letter-spacing:-0.01em;">${titulo}</p>
+                <p style="font-size:12px;color:#9CA3AF;margin:3px 0 0;font-weight:500;">${subtitulo}</p>
+            </div>
+            <button onclick="this.closest('#${id}').remove()" style="background:none;border:none;cursor:pointer;color:#D1D5DB;font-size:20px;line-height:1;padding:0;flex-shrink:0;">&times;</button>
+        </div>
+    `;
+    document.body.appendChild(alerta);
+    setTimeout(() => alerta.remove(), 4000);
+}
+
+
+// ─── Custom select (troca a lista nativa do SO por um painel no estilo do site) ─
+
+function _initCustomSelects() {
+    document.querySelectorAll('select[data-custom]').forEach(sel => {
+        if (sel.dataset.customReady) return;
+        sel.dataset.customReady = '1';
+
+        const wrap = document.createElement('div');
+        wrap.className = 'custom-select-wrap';
+        wrap.style.position = 'relative';
+        if (sel.classList.contains('w-full')) {
+            wrap.style.display = 'block';
+            wrap.style.width = '100%';
+        } else {
+            wrap.style.display = 'inline-block';
+        }
+
+        sel.parentNode.insertBefore(wrap, sel);
+        wrap.appendChild(sel);
+        sel.classList.add('custom-select-native');
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = sel.className.replace('custom-select-native', '') + ' custom-select-btn';
+        if (sel.classList.contains('w-full')) btn.style.width = '100%';
+        wrap.appendChild(btn);
+
+        const panel = document.createElement('div');
+        panel.className = 'custom-select-panel hidden';
+        wrap.appendChild(panel);
+
+        function renderOptions() {
+            panel.innerHTML = '';
+            Array.from(sel.options).forEach(opt => {
+                const item = document.createElement('div');
+                item.className = 'custom-select-option' + (opt.value === sel.value ? ' selected' : '');
+                item.textContent = opt.textContent;
+                item.onclick = () => {
+                    sel.value = opt.value;
+                    sel.dispatchEvent(new Event('change', { bubbles: true }));
+                    syncButton();
+                    fecharPainel();
+                };
+                panel.appendChild(item);
+            });
+        }
+
+        function syncButton() {
+            const selecionada = sel.options[sel.selectedIndex];
+            btn.innerHTML = '';
+            const span = document.createElement('span');
+            span.textContent = selecionada ? selecionada.textContent : '';
+            btn.appendChild(span);
+            btn.insertAdjacentHTML('beforeend', `<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 custom-select-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>`);
+            renderOptions();
+        }
+
+        function fecharPainel() {
+            panel.classList.add('hidden');
+            wrap.classList.remove('open');
+        }
+
+        btn.onclick = () => {
+            const estavaAberto = !panel.classList.contains('hidden');
+            document.querySelectorAll('.custom-select-panel').forEach(p => p.classList.add('hidden'));
+            document.querySelectorAll('.custom-select-wrap').forEach(w => w.classList.remove('open'));
+            if (!estavaAberto) {
+                panel.classList.remove('hidden');
+                wrap.classList.add('open');
+            }
+        };
+
+        syncButton();
+    });
+}
+
+document.addEventListener('DOMContentLoaded', _initCustomSelects);
+
+document.addEventListener('click', (e) => {
+    document.querySelectorAll('.custom-select-wrap').forEach(wrap => {
+        if (!wrap.contains(e.target)) {
+            wrap.classList.remove('open');
+            const panel = wrap.querySelector('.custom-select-panel');
+            if (panel) panel.classList.add('hidden');
+        }
+    });
+});
+
+
 // ─── Toasts ───────────────────────────────────────────────────────────────
 
 function showToast(mensagem, tipo = 'info', duracao = 3500) {
@@ -52,6 +186,32 @@ function toggleSenha(inputId) {
     const eyeClosed = document.getElementById('eye-closed-' + inputId);
     if (eyeOpen)   eyeOpen.classList.toggle('hidden', isPassword);
     if (eyeClosed) eyeClosed.classList.toggle('hidden', !isPassword);
+}
+
+
+// ─── Confirmação de ação (substitui o confirm() nativo do navegador) ──────
+
+let _formPendenteConfirmacao = null;
+
+function confirmarEnvio(form, mensagem) {
+    _formPendenteConfirmacao = form;
+    const texto = document.getElementById('modal-confirmacao-texto');
+    if (texto) texto.textContent = mensagem;
+    abrirModal('modal-confirmacao');
+    return false;
+}
+
+function _confirmarConfirmacao() {
+    fecharModal('modal-confirmacao');
+    if (_formPendenteConfirmacao) {
+        _formPendenteConfirmacao.submit();
+        _formPendenteConfirmacao = null;
+    }
+}
+
+function _fecharConfirmacao() {
+    fecharModal('modal-confirmacao');
+    _formPendenteConfirmacao = null;
 }
 
 

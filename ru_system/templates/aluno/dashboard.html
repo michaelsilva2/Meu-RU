@@ -113,7 +113,7 @@
         <button onclick="this.closest('#msg-toast').remove(); resetModalRecarga(); abrirModal('modal-recarga');"
             style="display:block;width:100%;padding:11px 0;border:none;border-top:1px solid #F3F4F6;background:#FFF7F2;color:#F47920;font-weight:800;font-size:12.5px;letter-spacing:0.02em;text-transform:uppercase;cursor:pointer;transition:background .15s;"
             onmouseover="this.style.background='#FFEDE0'" onmouseout="this.style.background='#FFF7F2'">
-            Recarregar agora →
+            Recarregar agora! →
         </button>
     </div>
     {% endif %}
@@ -136,7 +136,7 @@
         <button onclick="this.closest('#msg-toast-saldo-baixo').remove(); resetModalRecarga(); abrirModal('modal-recarga');"
             style="display:block;width:100%;padding:11px 0;border:none;border-top:1px solid #F3F4F6;background:#FFF7F2;color:#F47920;font-weight:800;font-size:12.5px;letter-spacing:0.02em;text-transform:uppercase;cursor:pointer;transition:background .15s;"
             onmouseover="this.style.background='#FFEDE0'" onmouseout="this.style.background='#FFF7F2'">
-            Recarregar agora →
+            Recarregar agora! →
         </button>
     </div>
     {% endif %}
@@ -166,11 +166,18 @@
         </div>
         <p class="text-4xl font-extrabold text-white tracking-tight mb-1">Acesso gratuito</p>
         <p class="text-white/60 text-sm mb-6">suas refeições não têm custo</p>
-        <button onclick="abrirModal('modal-refeicao')"
-            class="inline-flex items-center gap-2 bg-white font-bold text-sm px-5 py-2.5 rounded-xl transition hover:bg-white/90"
-            style="color: #F47920;">
-            🍽️ Registrar refeição
-        </button>
+        <div class="flex flex-wrap gap-3">
+            <a href="/aluno/qrcode"
+                class="inline-flex items-center gap-2 bg-white font-bold text-sm px-5 py-2.5 rounded-xl transition hover:bg-white/90"
+                style="color: #F47920;">
+                📱 Mostrar código de acesso
+            </a>
+            <button onclick="abrirModal('modal-refeicao')"
+                class="inline-flex items-center gap-2 bg-white font-bold text-sm px-5 py-2.5 rounded-xl transition hover:bg-white/90"
+                style="color: #F47920;">
+                🍽️ Registrar refeição
+            </button>
+        </div>
 
         {% else %}
         <!-- Demais categorias: exibe saldo e botões -->
@@ -190,11 +197,16 @@
             <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
             </svg>
-            <p class="text-white text-xs font-semibold">Saldo insuficiente para a próxima refeição — recarregue agora</p>
+            <p class="text-white text-xs font-semibold">Saldo insuficiente para a próxima refeição, recarregue agora!</p>
         </div>
         {% endif %}
 
         <div class="flex flex-wrap gap-3">
+            <a href="/aluno/qrcode"
+                class="inline-flex items-center gap-2 bg-white font-bold text-sm px-5 py-2.5 rounded-xl transition hover:bg-white/90"
+                style="color: #F47920;">
+                📱 Mostrar código de acesso
+            </a>
             <button onclick="resetModalRecarga(); abrirModal('modal-recarga')"
                 class="inline-flex items-center gap-2 bg-white font-bold text-sm px-5 py-2.5 rounded-xl transition hover:bg-white/90"
                 style="color: #F47920;">
@@ -219,8 +231,10 @@
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Histórico</p>
             <a href="/aluno/historico"
-               class="inline-flex items-center gap-1 text-sm font-bold mt-2 transition"
-               style="color: #F47920;">
+               class="inline-flex items-center gap-1.5 text-sm font-bold text-white px-4 py-2 rounded-xl shadow-sm transition-all duration-200 mt-1"
+               style="background: linear-gradient(135deg, #F47920, #E03D3D);"
+               onmouseover="this.style.opacity='.88'; this.style.boxShadow='0 6px 14px rgba(244,121,32,0.35)';"
+               onmouseout="this.style.opacity='1'; this.style.boxShadow='';">
                 Ver tudo →
             </a>
             <p class="text-gray-400 text-xs mt-1 uppercase tracking-wide">Todas as Refeições</p>
@@ -247,7 +261,13 @@
     <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
             <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wide">Últimas Refeições</h2>
-            <a href="/aluno/historico" class="text-xs font-bold transition" style="color: #F47920;">Ver todas →</a>
+            <a href="/aluno/historico"
+               class="inline-flex items-center gap-1 text-xs font-bold text-white px-3 py-1.5 rounded-lg shadow-sm transition-all duration-200"
+               style="background: linear-gradient(135deg, #F47920, #E03D3D);"
+               onmouseover="this.style.opacity='.88'; this.style.boxShadow='0 6px 14px rgba(244,121,32,0.35)';"
+               onmouseout="this.style.opacity='1'; this.style.boxShadow='';">
+                Ver todas →
+            </a>
         </div>
         <div class="divide-y divide-gray-50">
             {% for r in ultimas_refeicoes %}
@@ -308,15 +328,15 @@
                             Tipo de refeição
                         </label>
                         <div class="grid grid-cols-2 gap-3">
-                            <label class="flex flex-col items-center gap-2 p-4 border-2 rounded-xl cursor-pointer transition has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50 border-gray-200 hover:border-orange-200">
-                                <input type="radio" name="tipo" value="almoco" checked class="hidden">
+                            <label class="flex flex-col items-center gap-2 p-4 border-2 rounded-xl cursor-pointer transition has-[:checked]:border-orange-400 has-[:checked]:bg-orange-100 border-gray-200 hover:border-orange-200">
+                                <input type="radio" name="tipo" value="almoco" id="refeicao-tipo-almoco" checked class="hidden" onchange="_atualizarSelecaoTipoRefeicao()">
                                 <span class="text-3xl">🌞</span>
-                                <span class="text-sm font-semibold text-gray-700">Almoço</span>
+                                <span id="refeicao-label-almoco" class="text-sm font-semibold">Almoço</span>
                             </label>
-                            <label class="flex flex-col items-center gap-2 p-4 border-2 rounded-xl cursor-pointer transition has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50 border-gray-200 hover:border-orange-200">
-                                <input type="radio" name="tipo" value="jantar" class="hidden">
+                            <label class="flex flex-col items-center gap-2 p-4 border-2 rounded-xl cursor-pointer transition has-[:checked]:border-orange-400 has-[:checked]:bg-orange-100 border-gray-200 hover:border-orange-200">
+                                <input type="radio" name="tipo" value="jantar" id="refeicao-tipo-jantar" class="hidden" onchange="_atualizarSelecaoTipoRefeicao()">
                                 <span class="text-3xl">🌙</span>
-                                <span class="text-sm font-semibold text-gray-700">Jantar</span>
+                                <span id="refeicao-label-jantar" class="text-sm font-semibold">Jantar</span>
                             </label>
                         </div>
                     </div>
@@ -389,12 +409,12 @@
                                 <button type="button" data-metodo="pix" onclick="selecionarMetodoPagamento('pix')"
                                     class="metodo-btn py-2.5 rounded-xl border-2 text-sm font-bold transition"
                                     style="border-color:#F47920;background:#FFF4EC;color:#F47920;">
-                                    Pix
+                                    💠 Pix
                                 </button>
                                 <button type="button" data-metodo="cartao" onclick="selecionarMetodoPagamento('cartao')"
                                     class="metodo-btn py-2.5 rounded-xl border-2 text-sm font-bold transition"
                                     style="border-color:#E5E7EB;background:white;color:#6B7280;">
-                                    Cartão
+                                    💳 Cartão
                                 </button>
                             </div>
                         </div>
@@ -481,10 +501,125 @@
                     </div>
                 </div>
 
-                <!-- Passo 5: cartão (Card Payment Brick do Mercado Pago) -->
+                <!-- Passo 5b: cartões salvos -->
+                <div id="recarga-passo-cartoes-salvos" class="hidden">
+                    <p class="text-sm text-gray-500 mb-4">Escolha um cartão salvo ou use outro.</p>
+                    <div class="space-y-2 mb-4">
+                        {% for cartao in cartoes_salvos %}
+                        <div id="cartao-salvo-linha-{{ cartao.id }}" class="flex items-center gap-1 border border-gray-200 rounded-xl hover:border-orange-300 hover:bg-orange-50 transition">
+                            <button type="button" onclick="pagarComCartaoSalvo({{ cartao.id }})"
+                                class="cartao-salvo-btn flex-1 min-w-0 flex items-center gap-3 px-4 py-3 text-left">
+                                <span class="text-2xl">💳</span>
+                                <span class="flex-1 min-w-0">
+                                    <span class="block text-sm font-bold text-gray-900">•••• {{ cartao.ultimos_digitos }} · {{ cartao.bandeira }}</span>
+                                    <span class="block text-xs text-gray-400">{{ cartao.nome_impresso }} · {{ 'Débito' if cartao.tipo == 'debito' else 'Crédito' }}</span>
+                                </span>
+                            </button>
+                            <div class="relative flex-shrink-0 pr-2">
+                                <button type="button" onclick="toggleMenuCartaoSalvo(event, {{ cartao.id }})"
+                                    class="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-200/60 hover:text-gray-600 transition text-lg leading-none">
+                                    ⋮
+                                </button>
+                                <div id="menu-cartao-salvo-{{ cartao.id }}" class="hidden absolute right-0 top-9 z-10 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden" style="width:170px;">
+                                    <button type="button" onclick="removerCartaoSalvo({{ cartao.id }})"
+                                        class="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 transition">
+                                        <span class="text-base leading-none">&times;</span> Remover cartão
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <button type="button" onclick="mostrarFormularioNovoCartao()"
+                        class="w-full py-3 border border-dashed border-gray-200 hover:border-orange-300 hover:bg-orange-50 rounded-xl transition text-sm font-bold mb-3"
+                        style="color:#F47920;">
+                        + Usar outro cartão
+                    </button>
+                    <button type="button" onclick="resetModalRecarga()"
+                        class="w-full py-3 border border-gray-200 rounded-xl text-gray-500 hover:bg-gray-50 transition text-sm font-medium">
+                        Cancelar
+                    </button>
+                </div>
+
+                <!-- Passo 5: cartão -->
                 <div id="recarga-passo-cartao" class="hidden">
-                    <p id="cartao-carregando" class="text-sm text-gray-400 text-center py-6">Carregando formulário de pagamento...</p>
-                    <div id="cardPaymentBrick_container"></div>
+                    <form id="form-cartao">
+                        <div class="grid grid-cols-2 gap-2 mb-5">
+                            <button type="button" data-tipo-cartao="credito" onclick="selecionarTipoCartao('credito')"
+                                class="tipo-cartao-btn py-2.5 rounded-xl border-2 text-sm font-bold transition"
+                                style="border-color:#F47920;background:#FFF4EC;color:#F47920;">
+                                Crédito
+                            </button>
+                            <button type="button" data-tipo-cartao="debito" onclick="selecionarTipoCartao('debito')"
+                                class="tipo-cartao-btn py-2.5 rounded-xl border-2 text-sm font-bold transition"
+                                style="border-color:#E5E7EB;background:white;color:#6B7280;">
+                                Débito
+                            </button>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Número do cartão</label>
+                            <input type="text" id="cartao-numero" inputmode="numeric" maxlength="19" placeholder="0000 0000 0000 0000" required
+                                class="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition">
+                            <p id="erro-cartao-numero" class="hidden mt-2 text-xs font-semibold rounded-lg px-3 py-2 flex items-center gap-1.5" style="background:#FEF2F2;color:#E03D3D;">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+                                </svg>
+                                <span class="erro-texto">Informe o número do cartão.</span>
+                            </p>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Nome impresso no cartão</label>
+                            <input type="text" id="cartao-nome" placeholder="Como está no cartão" required
+                                class="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition">
+                            <p id="erro-cartao-nome" class="hidden mt-2 text-xs font-semibold rounded-lg px-3 py-2 flex items-center gap-1.5" style="background:#FEF2F2;color:#E03D3D;">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+                                </svg>
+                                <span class="erro-texto">Informe o nome impresso no cartão.</span>
+                            </p>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3 mb-2">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Validade</label>
+                                <input type="text" id="cartao-validade" inputmode="numeric" maxlength="5" placeholder="MM/AA" required
+                                    class="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition">
+                                <p id="erro-cartao-validade" class="hidden mt-2 text-xs font-semibold rounded-lg px-3 py-2 flex items-center gap-1.5" style="background:#FEF2F2;color:#E03D3D;">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+                                    </svg>
+                                    <span class="erro-texto">Informe a validade.</span>
+                                </p>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">CVV</label>
+                                <input type="text" id="cartao-cvv" inputmode="numeric" maxlength="4" placeholder="123" required
+                                    class="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition">
+                                <p id="erro-cartao-cvv" class="hidden mt-2 text-xs font-semibold rounded-lg px-3 py-2 flex items-center gap-1.5" style="background:#FEF2F2;color:#E03D3D;">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+                                    </svg>
+                                    <span class="erro-texto">Informe o CVV.</span>
+                                </p>
+                            </div>
+                        </div>
+                        <p id="erro-cartao" class="hidden mt-2 mb-3 text-xs font-semibold rounded-lg px-3 py-2" style="background:#FEF2F2;color:#E03D3D;"></p>
+                        <div class="flex gap-3 mt-3">
+                            <button type="button" onclick="resetModalRecarga()"
+                                class="flex-1 py-3 border border-gray-200 rounded-xl text-gray-500 hover:bg-gray-50 transition text-sm font-medium">
+                                Cancelar
+                            </button>
+                            <button type="submit" id="btn-confirmar-cartao"
+                                class="btn-gradient flex-1 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 text-sm">
+                                <span class="btn-text">Pagar</span>
+                                <span class="btn-loading hidden">
+                                    <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                    </svg>
+                                </span>
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
@@ -493,31 +628,13 @@
 {% endblock %}
 
 {% block scripts %}
-<style>
-@keyframes toastSlide {
-    from { opacity: 0; transform: translateX(24px); }
-    to   { opacity: 1; transform: translateX(0); }
-}
-</style>
-{% if mp_public_key %}
-<script src="https://sdk.mercadopago.com/js/v2"></script>
-{% endif %}
 <script>
-const msgToast = document.getElementById('msg-toast');
-if (msgToast) {
-    requestAnimationFrame(() => {
-        const bar = document.getElementById('toast-bar');
-        if (bar) bar.style.width = '0%';
-    });
-    if (!msgToast.dataset.persist) {
-        setTimeout(() => {
-            msgToast.style.transition = 'opacity .35s, transform .35s';
-            msgToast.style.opacity = '0';
-            msgToast.style.transform = 'translateX(24px)';
-            setTimeout(() => msgToast.remove(), 380);
-        }, 4000);
-    }
+function _atualizarSelecaoTipoRefeicao() {
+    document.getElementById('refeicao-label-almoco').style.color = document.getElementById('refeicao-tipo-almoco').checked ? '#111111' : '#9CA3AF';
+    document.getElementById('refeicao-label-jantar').style.color = document.getElementById('refeicao-tipo-jantar').checked ? '#111111' : '#9CA3AF';
 }
+_atualizarSelecaoTipoRefeicao();
+
 {% if dados_semanas %}
 const ctx = document.getElementById('grafico-semanas').getContext('2d');
 new Chart(ctx, {
@@ -576,14 +693,40 @@ validarValorInput(document.getElementById('valor-recarga'), {
     maximo: 'O valor deve ser menor ou igual a R$ 500,00.',
 });
 
+validarValorInput(document.getElementById('cartao-numero'), { obrigatorio: 'Informe o número do cartão.', padrao: 'Número de cartão inválido.' });
+validarValorInput(document.getElementById('cartao-nome'), { obrigatorio: 'Informe o nome impresso no cartão.' });
+validarValorInput(document.getElementById('cartao-validade'), { obrigatorio: 'Informe a validade.', padrao: 'Validade inválida.' });
+validarValorInput(document.getElementById('cartao-cvv'), { obrigatorio: 'Informe o CVV.', padrao: 'CVV inválido.' });
+
+// ─── Alerta flutuante de pagamento aprovado (mesmo modelo do "Saldo baixo") ─
+// mostrarAlertaFlutuante() é global — definida em static/js/app.js
+
+function mostrarAlertaPagamentoAprovado(valorFormatado) {
+    mostrarAlertaFlutuante('M4.5 12.75l6 6 9-13.5', 'Pagamento aprovado!', `R$ ${valorFormatado} foram adicionados ao seu saldo.`);
+}
+
+function mostrarAlertaPixCopiado() {
+    mostrarAlertaFlutuante('M4.5 12.75l6 6 9-13.5', 'Código Pix copiado!', 'Cole no app do seu banco para pagar.');
+}
+
 // ─── Recarga via Pix / Cartão ───────────────────────────────────────────
 
 let recargaPollingInterval = null;
 let metodoSelecionado = 'pix';
 let cpfConfirmadoNestaSessao = {{ 'true' if cpf_cadastrado else 'false' }};
-let cardBrickController = null;
+let tipoCartaoSelecionado = 'credito';
 let valorRecargaAtual = null;
-const mpInstance = {% if mp_public_key %}new MercadoPago('{{ mp_public_key }}', { locale: 'pt-BR' }){% else %}null{% endif %};
+const cartoesSalvos = {{ cartoes_salvos|length }};
+
+function selecionarTipoCartao(tipo) {
+    tipoCartaoSelecionado = tipo;
+    document.querySelectorAll('.tipo-cartao-btn').forEach(btn => {
+        const ativo = btn.dataset.tipoCartao === tipo;
+        btn.style.borderColor = ativo ? '#F47920' : '#E5E7EB';
+        btn.style.background = ativo ? '#FFF4EC' : 'white';
+        btn.style.color = ativo ? '#F47920' : '#6B7280';
+    });
+}
 
 function selecionarMetodoPagamento(metodo) {
     metodoSelecionado = metodo;
@@ -600,7 +743,6 @@ function selecionarMetodoPagamento(metodo) {
 function fecharModalRecarga() {
     fecharModal('modal-recarga');
     if (recargaPollingInterval) { clearInterval(recargaPollingInterval); recargaPollingInterval = null; }
-    if (cardBrickController) { try { cardBrickController.unmount(); } catch (e) {} cardBrickController = null; }
     setTimeout(resetModalRecarga, 250);
 }
 
@@ -609,10 +751,9 @@ function resetModalRecarga() {
     document.getElementById('recarga-passo-pix').classList.add('hidden');
     document.getElementById('recarga-passo-erro').classList.add('hidden');
     document.getElementById('recarga-passo-cpf').classList.add('hidden');
+    document.getElementById('recarga-passo-cartoes-salvos').classList.add('hidden');
     document.getElementById('recarga-passo-cartao').classList.add('hidden');
     document.getElementById('pix-qr-secao').classList.remove('hidden');
-
-    if (cardBrickController) { try { cardBrickController.unmount(); } catch (e) {} cardBrickController = null; }
 
     const btn = document.getElementById('btn-confirmar-recarga');
     btn.disabled = false;
@@ -623,8 +764,11 @@ function resetModalRecarga() {
     document.getElementById('erro-valor-recarga').classList.add('hidden');
     document.getElementById('cpf-input').value = '';
     document.getElementById('erro-cpf').classList.add('hidden');
+    document.getElementById('form-cartao').reset();
+    document.getElementById('erro-cartao').classList.add('hidden');
 
     selecionarMetodoPagamento('pix');
+    selecionarTipoCartao('credito');
 
     const badge = document.getElementById('pix-status-badge');
     badge.style.background = '#FFF4EC';
@@ -638,6 +782,7 @@ function mostrarErroRecarga(msg) {
     document.getElementById('recarga-passo-valor').classList.add('hidden');
     document.getElementById('recarga-passo-pix').classList.add('hidden');
     document.getElementById('recarga-passo-cpf').classList.add('hidden');
+    document.getElementById('recarga-passo-cartoes-salvos').classList.add('hidden');
     document.getElementById('recarga-passo-cartao').classList.add('hidden');
     document.getElementById('recarga-passo-erro').classList.remove('hidden');
     document.getElementById('recarga-erro-texto').textContent = msg;
@@ -646,7 +791,7 @@ function mostrarErroRecarga(msg) {
 function copiarPix() {
     const campo = document.getElementById('pix-copia-cola');
     navigator.clipboard.writeText(campo.value).then(() => {
-        showToast('Código Pix copiado!', 'sucesso', 2000);
+        mostrarAlertaPixCopiado();
     }).catch(() => {
         campo.select();
     });
@@ -694,8 +839,8 @@ document.getElementById('form-recarga').addEventListener('submit', async functio
         document.getElementById('pix-copia-cola').value = dados.copia_cola;
         if (dados.expira_em) {
             const expira = new Date(dados.expira_em + 'Z');
-            document.getElementById('pix-expira-texto').textContent =
-                `Expira às ${expira.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+            const minutosRestantes = Math.max(1, Math.round((expira - new Date()) / 60000));
+            document.getElementById('pix-expira-texto').textContent = `Expira em ${minutosRestantes} min`;
         }
 
         document.getElementById('recarga-passo-valor').classList.add('hidden');
@@ -752,92 +897,184 @@ async function confirmarCpf() {
 async function iniciarCartao() {
     document.getElementById('recarga-passo-valor').classList.add('hidden');
     document.getElementById('recarga-passo-cpf').classList.add('hidden');
-    document.getElementById('recarga-passo-cartao').classList.remove('hidden');
 
-    const container = document.getElementById('cardPaymentBrick_container');
-    container.innerHTML = '';
-    document.getElementById('cartao-carregando').classList.remove('hidden');
-
-    try {
-        const resCustomer = await fetch('/aluno/mp-customer-id', { method: 'POST' });
-        const dadosCustomer = await resCustomer.json();
-        if (!resCustomer.ok) throw new Error(dadosCustomer.erro || 'erro');
-
-        if (cardBrickController) { try { cardBrickController.unmount(); } catch (e) {} cardBrickController = null; }
-
-        cardBrickController = await mpInstance.bricks().create('cardPayment', 'cardPaymentBrick_container', {
-            initialization: {
-                amount: parseFloat(valorRecargaAtual),
-                payer: { customerId: dadosCustomer.customer_id, email: '{{ aluno.email }}' },
-            },
-            customization: {
-                visual: {
-                    style: {
-                        theme: 'default',
-                        customVariables: {
-                            baseColor: '#F47920',
-                            errorColor: '#E03D3D',
-                            successColor: '#16A34A',
-                            formBackgroundColor: '#FFFFFF',
-                            fontSizeMedium: '15px',
-                            fontWeightNormal: '500',
-                            fontWeightSemiBold: '700',
-                            inputFocusedBoxShadow: '0 0 0 2px #F4792025',
-                            borderRadiusLarge: '12px',
-                            borderRadiusMedium: '10px',
-                            borderRadiusSmall: '8px',
-                        },
-                    },
-                },
-                paymentMethods: { maxInstallments: 1 },
-            },
-            callbacks: {
-                onReady: () => {
-                    document.getElementById('cartao-carregando').classList.add('hidden');
-                },
-                onSubmit: (cardFormData) => new Promise((resolve, reject) => {
-                    fetch('/aluno/recarregar-cartao', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ ...cardFormData, valor: valorRecargaAtual, csrf_token: '{{ csrf_token }}' }),
-                    })
-                        .then(res => res.json().then(dados => ({ ok: res.ok, dados })))
-                        .then(({ ok, dados }) => {
-                            if (!ok) {
-                                mostrarErroRecarga(ERROS_RECARGA[dados.erro] || 'Não foi possível processar o cartão.');
-                                reject();
-                                return;
-                            }
-                            resolve();
-                            processarResultadoCartao(dados);
-                        })
-                        .catch(() => { mostrarErroRecarga('Não foi possível conectar. Tente de novo.'); reject(); });
-                }),
-                onError: (error) => {
-                    console.error(error);
-                    mostrarErroRecarga('Erro no formulário de cartão. Confira os dados e tente de novo.');
-                },
-            },
-        });
-    } catch (err) {
-        mostrarErroRecarga('Não foi possível carregar o formulário de cartão agora.');
+    if (cartoesSalvos > 0) {
+        document.getElementById('recarga-passo-cartoes-salvos').classList.remove('hidden');
+    } else {
+        document.getElementById('recarga-passo-cartao').classList.remove('hidden');
     }
 }
 
-function processarResultadoCartao(dados) {
-    document.getElementById('recarga-passo-cartao').classList.add('hidden');
-    document.getElementById('recarga-passo-pix').classList.remove('hidden');
-    document.getElementById('pix-qr-secao').classList.add('hidden');
+function mostrarFormularioNovoCartao() {
+    document.getElementById('recarga-passo-cartoes-salvos').classList.add('hidden');
+    document.getElementById('recarga-passo-cartao').classList.remove('hidden');
+}
 
+async function pagarComCartaoSalvo(cartaoId) {
+    document.querySelectorAll('.cartao-salvo-btn').forEach(b => b.disabled = true);
+
+    try {
+        const res = await fetch('/aluno/recarregar-cartao-salvo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cartao_id: cartaoId, valor: valorRecargaAtual, csrf_token: '{{ csrf_token }}' }),
+        });
+        const dados = await res.json();
+
+        if (!res.ok) {
+            mostrarErroRecarga(ERROS_RECARGA[dados.erro] || 'Não foi possível processar o pagamento.');
+            return;
+        }
+
+        processarResultadoCartao(dados);
+    } catch (err) {
+        mostrarErroRecarga('Não foi possível conectar. Tente de novo.');
+    } finally {
+        document.querySelectorAll('.cartao-salvo-btn').forEach(b => b.disabled = false);
+    }
+}
+
+function toggleMenuCartaoSalvo(event, cartaoId) {
+    event.stopPropagation();
+    document.querySelectorAll('[id^="menu-cartao-salvo-"]').forEach(m => {
+        if (m.id !== `menu-cartao-salvo-${cartaoId}`) m.classList.add('hidden');
+    });
+    document.getElementById(`menu-cartao-salvo-${cartaoId}`).classList.toggle('hidden');
+}
+
+document.addEventListener('click', function () {
+    document.querySelectorAll('[id^="menu-cartao-salvo-"]').forEach(m => m.classList.add('hidden'));
+});
+
+async function removerCartaoSalvo(cartaoId) {
+    try {
+        const res = await fetch('/aluno/cartao-salvo/remover', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cartao_id: cartaoId, csrf_token: '{{ csrf_token }}' }),
+        });
+        if (!res.ok) {
+            showToast('Não foi possível remover o cartão.', 'erro');
+            return;
+        }
+        document.getElementById(`cartao-salvo-linha-${cartaoId}`).remove();
+        mostrarAlertaFlutuante('M4.5 12.75l6 6 9-13.5', 'Cartão removido!', 'Ele não vai mais aparecer na lista de pagamento.');
+        if (!document.querySelector('[id^="cartao-salvo-linha-"]')) {
+            mostrarFormularioNovoCartao();
+        }
+    } catch (err) {
+        showToast('Não foi possível conectar.', 'erro');
+    }
+}
+
+function luhnValido(numero) {
+    let soma = 0;
+    let dobrar = false;
+    for (let i = numero.length - 1; i >= 0; i--) {
+        let d = parseInt(numero[i], 10);
+        if (dobrar) {
+            d *= 2;
+            if (d > 9) d -= 9;
+        }
+        soma += d;
+        dobrar = !dobrar;
+    }
+    return soma % 10 === 0;
+}
+
+document.getElementById('cartao-numero').addEventListener('input', function () {
+    this.value = this.value.replace(/\D/g, '').slice(0, 19).replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+    const digitos = this.value.replace(/\s/g, '');
+    if (digitos.length === 0) {
+        this.setCustomValidity('');
+    } else if (digitos.length < 13) {
+        this.setCustomValidity('incompleto');
+    } else {
+        this.setCustomValidity(luhnValido(digitos) ? '' : 'invalido');
+    }
+});
+
+document.getElementById('cartao-nome').addEventListener('input', function () {
+    const tamanhoAntes = this.value.length;
+    const posicaoAntes = this.selectionStart;
+    this.value = this.value.toUpperCase().replace(/[^A-ZÀ-Ú\s]/g, '');
+    const novaPosicao = posicaoAntes - (tamanhoAntes - this.value.length);
+    this.setSelectionRange(novaPosicao, novaPosicao);
+});
+
+document.getElementById('cartao-validade').addEventListener('input', function () {
+    this.value = this.value.replace(/\D/g, '').slice(0, 4).replace(/(\d{2})(?=\d)/, '$1/');
+    if (this.value.length === 0) {
+        this.setCustomValidity('');
+    } else if (this.value.length < 5) {
+        this.setCustomValidity('incompleto');
+    } else {
+        const [mes, ano] = this.value.split('/').map(Number);
+        const expiraFimDoMes = new Date(2000 + ano, mes, 1);
+        this.setCustomValidity((mes >= 1 && mes <= 12 && expiraFimDoMes > new Date()) ? '' : 'vencido');
+    }
+});
+
+document.getElementById('cartao-cvv').addEventListener('input', function () {
+    this.value = this.value.replace(/\D/g, '').slice(0, 4);
+    this.setCustomValidity(this.value.length > 0 && this.value.length < 3 ? 'incompleto' : '');
+});
+
+document.getElementById('form-cartao').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const erroCartao = document.getElementById('erro-cartao');
+    erroCartao.classList.add('hidden');
+
+    const btn = document.getElementById('btn-confirmar-cartao');
+    setLoading(btn);
+
+    try {
+        const res = await fetch('/aluno/recarregar-cartao', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                numero: document.getElementById('cartao-numero').value,
+                nome: document.getElementById('cartao-nome').value,
+                validade: document.getElementById('cartao-validade').value,
+                cvv: document.getElementById('cartao-cvv').value,
+                tipo: tipoCartaoSelecionado,
+                valor: valorRecargaAtual,
+                csrf_token: '{{ csrf_token }}',
+            }),
+        });
+        const dados = await res.json();
+
+        if (!res.ok) {
+            if (dados.erro === 'dados_cartao_invalidos') {
+                erroCartao.textContent = 'Confira os dados do cartão e tente de novo.';
+                erroCartao.classList.remove('hidden');
+            } else {
+                mostrarErroRecarga(ERROS_RECARGA[dados.erro] || 'Não foi possível processar o cartão.');
+            }
+            return;
+        }
+
+        processarResultadoCartao(dados);
+    } catch (err) {
+        mostrarErroRecarga('Não foi possível conectar. Tente de novo.');
+    } finally {
+        const btnAtual = document.getElementById('btn-confirmar-cartao');
+        btnAtual.disabled = false;
+        btnAtual.querySelector('.btn-text').classList.remove('hidden');
+        btnAtual.querySelector('.btn-loading').classList.add('hidden');
+    }
+});
+
+function processarResultadoCartao(dados) {
     if (dados.status === 'aprovado') {
-        const badge = document.getElementById('pix-status-badge');
-        badge.style.background = '#F0FDF4';
-        badge.style.color = '#16A34A';
-        badge.querySelector('.pix-status-dot').style.background = '#16A34A';
-        badge.querySelector('.pix-status-dot-ping').style.background = '#16A34A';
-        document.getElementById('pix-status-texto').textContent = 'Pagamento aprovado!';
-        setTimeout(() => window.location.reload(), 1200);
+        fecharModalRecarga();
+        mostrarAlertaPagamentoAprovado(dados.valor.replace('.', ','));
+        setTimeout(() => window.location.reload(), 1500);
     } else if (dados.status === 'pendente') {
+        document.getElementById('recarga-passo-cartao').classList.add('hidden');
+        document.getElementById('recarga-passo-cartoes-salvos').classList.add('hidden');
+        document.getElementById('recarga-passo-pix').classList.remove('hidden');
+        document.getElementById('pix-qr-secao').classList.add('hidden');
         document.getElementById('pix-status-texto').textContent = 'Seu pagamento está em análise...';
         iniciarPollingRecarga(dados.referencia);
     } else {
@@ -870,7 +1107,8 @@ function iniciarPollingRecarga(referencia) {
                 badge.querySelector('.pix-status-dot').style.background = '#16A34A';
                 badge.querySelector('.pix-status-dot-ping').style.background = '#16A34A';
                 document.getElementById('pix-status-texto').textContent = 'Pagamento confirmado!';
-                setTimeout(() => window.location.reload(), 1200);
+                mostrarAlertaPagamentoAprovado(dados.valor.replace('.', ','));
+                setTimeout(() => window.location.reload(), 2000);
             } else if (['expirado', 'rejeitado', 'cancelado'].includes(dados.status)) {
                 clearInterval(recargaPollingInterval);
                 recargaPollingInterval = null;

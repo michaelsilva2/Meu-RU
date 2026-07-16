@@ -1,4 +1,5 @@
 ﻿{% extends "base.html" %}
+{% import "_toast_macros.html" as toasts %}
 {% block title %}Admins — MEU RU{% endblock %}
 
 {% block body %}
@@ -8,20 +9,22 @@
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold text-gray-800">Gerenciar Admins</h1>
         <button onclick="abrirModal('modal-criar-admin')"
-            class="bg-ru-blue text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition font-medium">
-            + Novo Admin
+            class="inline-flex items-center gap-2 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all duration-200"
+            style="background: linear-gradient(135deg, #F47920, #E03D3D);"
+            onmouseover="this.style.opacity='.88'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 8px 20px rgba(244,121,32,0.35)';"
+            onmouseout="this.style.opacity='1'; this.style.transform='translateY(0)'; this.style.boxShadow='';">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+            </svg>
+            Novo Admin
         </button>
     </div>
 
     {% if sucesso %}
-    <div id="msg-sucesso" class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
-        ✅ {{ sucesso | replace('+', ' ') }}
-    </div>
+        {{ toasts.toast_ok(sucesso | replace('+', ' ')) }}
     {% endif %}
     {% if erro %}
-    <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-        ⚠️ {{ erro | replace('+', ' ') }}
-    </div>
+        {{ toasts.toast_err(erro | replace('+', ' ')) }}
     {% endif %}
 
     <!-- Tabela de admins -->
@@ -68,8 +71,16 @@
                             <form method="POST" action="/admin/admins/{{ a.id }}/toggle-ativo" class="inline">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                                 <button type="submit"
-                                    onclick="return confirm('{% if a.ativo %}Desativar{% else %}Ativar{% endif %} {{ a.nome }}?')"
-                                    class="text-xs {% if a.ativo %}text-red-600 hover:underline{% else %}text-green-600 hover:underline{% endif %}">
+                                    onclick="return confirmarEnvio(this.form, '{% if a.ativo %}Desativar{% else %}Ativar{% endif %} {{ a.nome }}?')"
+                                    class="inline-flex items-center gap-1.5 text-xs font-bold text-white px-3 py-1.5 rounded-lg shadow-sm transition-all duration-200"
+                                    style="background: linear-gradient(135deg, {% if a.ativo %}#F87171, #DC2626{% else %}#4ADE80, #16A34A{% endif %});"
+                                    onmouseover="this.style.opacity='.88'; this.style.boxShadow='0 6px 14px {% if a.ativo %}rgba(220,38,38,0.35){% else %}rgba(22,163,74,0.35){% endif %}';"
+                                    onmouseout="this.style.opacity='1'; this.style.boxShadow='';">
+                                    {% if a.ativo %}
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M18.36 6.64a9 9 0 11-12.73 0M12 3v9"/></svg>
+                                    {% else %}
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+                                    {% endif %}
                                     {% if a.ativo %}Desativar{% else %}Ativar{% endif %}
                                 </button>
                             </form>
@@ -94,22 +105,22 @@
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Nome</label>
                 <input type="text" name="nome" placeholder="Nome completo" required
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ru-blue outline-none">
+                    class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-100">
             </div>
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
                 <input type="email" name="email" placeholder="email@ru.edu.br" required
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ru-blue outline-none">
+                    class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-100">
             </div>
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Senha</label>
                 <input type="password" name="senha" placeholder="Mínimo 8 caracteres" required
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ru-blue outline-none">
+                    class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-100">
             </div>
             <div class="mb-5">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Função</label>
-                <select name="role"
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ru-blue outline-none">
+                <select name="role" data-custom
+                    class="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-100">
                     <option value="operador">Operador</option>
                     <option value="admin">Admin</option>
                     <option value="super_admin">Super Admin</option>
@@ -121,7 +132,10 @@
                     Cancelar
                 </button>
                 <button type="submit" onclick="setLoading(this)"
-                    class="flex-1 py-2.5 bg-ru-blue text-white rounded-lg hover:bg-blue-700 transition font-medium">
+                    class="flex-1 py-2.5 text-white rounded-lg font-bold shadow-sm transition-all duration-200"
+                    style="background: linear-gradient(135deg, #F47920, #E03D3D);"
+                    onmouseover="this.style.opacity='.88'; this.style.boxShadow='0 6px 14px rgba(244,121,32,0.35)';"
+                    onmouseout="this.style.opacity='1'; this.style.boxShadow='';">
                     <span class="btn-text">Criar Admin</span>
                     <span class="btn-loading hidden">Criando...</span>
                 </button>
@@ -131,9 +145,3 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
-<script>
-const msgSucesso = document.getElementById('msg-sucesso');
-if (msgSucesso) setTimeout(() => msgSucesso.remove(), 4000);
-</script>
-{% endblock %}

@@ -18,6 +18,7 @@ from auth import (
     gerar_csrf_token, verificar_csrf, decodificar_token
 )
 from email_service import enviar_email_recuperacao, enviar_email_boas_vindas
+from whatsapp_bot import enviar_boas_vindas as enviar_whatsapp_boas_vindas
 from config import EXPIRACAO_TOKEN_RECUPERACAO_HORAS
 
 router = APIRouter()
@@ -463,6 +464,7 @@ async def cadastro_post(
     db.refresh(novo_aluno)
 
     enviar_email_boas_vindas(novo_aluno.email, novo_aluno.nome, novo_aluno.matricula)
+    enviar_whatsapp_boas_vindas(novo_aluno)
 
     token = criar_token_aluno(novo_aluno.id, novo_aluno.matricula)
     resposta = RedirectResponse(url="/aluno/dashboard", status_code=303)

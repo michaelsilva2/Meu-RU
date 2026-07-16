@@ -3,7 +3,6 @@ Rotas da área administrativa: dashboard, gerenciamento de alunos,
 histórico geral, recargas/remoções e gerenciamento de admins.
 """
 import asyncio
-import base64
 import csv
 import io
 import json
@@ -26,7 +25,7 @@ from models import (
     SatisfacaoEnvio, SatisfacaoResposta, PicoMovimento,
     DesperdícioAlimento, NivelDesperdicio, Cardapio,
 )
-from config import PRECOS_REFEICAO
+from config import PRECOS_REFEICAO, GEMINI_API_KEY
 from auth import (
     obter_admin_atual, exigir_super_admin,
     hash_senha, gerar_csrf_token, verificar_csrf
@@ -39,6 +38,8 @@ from whatsapp_bot import (
     _formatar_numero,
 )
 from email_service import enviar_emails_alerta_lote
+from refeicoes import registrar_refeicao, RefeicaoError
+import qrcode_acesso
 
 router = APIRouter(prefix="/admin")
 templates = Jinja2Templates(directory="templates")
@@ -151,6 +152,7 @@ async def registrar_desperdicio(
     request: Request,
     tipo: str = Form(...),
     nivel: str = Form(...),
+    itens: str = Form(""),
     observacao: str = Form(""),
     csrf_token: str = Form(...),
     db: Session = Depends(get_db),
@@ -172,6 +174,7 @@ async def registrar_desperdicio(
     desperdicio = DesperdícioAlimento(
         tipo=tipo_enum,
         nivel=nivel_enum,
+        itens=itens.strip() or None,
         observacao=observacao.strip() or None,
         registrado_em=datetime.utcnow(),
         registrado_por=admin.id,
@@ -292,7 +295,7 @@ async def recarregar_creditos(
     request: Request,
     aluno_id: int,
     valor: str = Form(...),
-    observacao: str = Form(""),
+    observacao: str = Form(...),
     csrf_token: str = Form(...),
     db: Session = Depends(get_db)
 ):
@@ -758,26 +761,15 @@ async def registrar_entrada(
     except ValueError:
         tipo_enum = TipoRefeicao.almoco
 
-    custo = PRECOS_REFEICAO.get(aluno.categoria.value, Decimal("6.00"))
-    if custo > 0 and Decimal(str(aluno.creditos)) < custo:
+    try:
+        # Registro manual do admin sempre pôde forçar além do limite de 2/dia
+        # (ex: corrigir um lançamento perdido) — QR e autoatendimento não podem.
+        refeicao = registrar_refeicao(db, aluno, tipo_enum, admin_id=admin.id, ignorar_limite_diario=True)
+    except RefeicaoError:
         return RedirectResponse(
             url=f"/admin/alunos/{aluno_id}?erro=Saldo+insuficiente",
             status_code=303,
         )
-
-    if custo > 0:
-        aluno.creditos = Decimal(str(aluno.creditos)) - custo
-
-    refeicao = HistoricoRefeicao(
-        aluno_id=aluno_id,
-        tipo=tipo_enum,
-        creditos_utilizados=custo,
-        data_hora=datetime.utcnow(),
-        registrado_por=admin.id,
-    )
-    db.add(refeicao)
-    db.commit()
-    db.refresh(refeicao)
 
     # Verifica pico e notifica admins se necessário
     verificar_e_registrar_pico(db)
@@ -790,6 +782,78 @@ async def registrar_entrada(
         url=f"/admin/alunos/{aluno_id}?sucesso=Entrada+registrada+com+sucesso",
         status_code=303,
     )
+
+
+# ─── Scanner de QR code ────────────────────────────────────────────────────
+
+@router.get("/scanner", response_class=HTMLResponse)
+async def scanner_pagina(request: Request, db: Session = Depends(get_db)):
+    try:
+        payload = obter_admin_atual(request)
+    except HTTPException:
+        return _redir_login()
+
+    admin = _get_admin(payload, db)
+    csrf = gerar_csrf_token()
+    resposta = templates.TemplateResponse(request, "admin/scanner.html", {
+        "admin": admin,
+        "tipo_sugerido": qrcode_acesso.tipo_refeicao_atual(),
+        "csrf_token": csrf,
+    })
+    resposta.set_cookie("csrf_token", csrf, httponly=False, samesite="lax")
+    return resposta
+
+
+@router.post("/scanner/validar")
+async def scanner_validar(request: Request, db: Session = Depends(get_db)):
+    """
+    Chamado pelo JS do scanner a cada QR lido pela câmera. Consome o token
+    (uso único) e registra a refeição, mesma regra de negócio do registro
+    manual — mas sem bypass do limite diário (ver refeicoes.registrar_refeicao).
+    """
+    try:
+        payload = obter_admin_atual(request)
+    except HTTPException:
+        return JSONResponse({"erro": "nao_autenticado"}, status_code=401)
+
+    corpo = await request.json()
+    verificar_csrf(request, {"csrf_token": corpo.get("csrf_token")})
+    admin = _get_admin(payload, db)
+
+    token = (corpo.get("token") or "").strip()
+    if not token:
+        return JSONResponse({"erro": "token_ausente"}, status_code=400)
+
+    try:
+        tipo_enum = TipoRefeicao(corpo.get("tipo", "almoco"))
+    except ValueError:
+        tipo_enum = TipoRefeicao.almoco
+
+    acesso = qrcode_acesso.validar_e_consumir(db, token, admin.id)
+    if not acesso:
+        return JSONResponse({"erro": "qrcode_invalido"}, status_code=400)
+
+    aluno = db.query(Aluno).filter(Aluno.id == acesso.aluno_id, Aluno.ativo == True).first()
+    if not aluno:
+        return JSONResponse({"erro": "aluno_nao_encontrado"}, status_code=404)
+
+    try:
+        refeicao = registrar_refeicao(db, aluno, tipo_enum, admin_id=admin.id)
+    except RefeicaoError as exc:
+        return JSONResponse({"erro": exc.motivo, "aluno_nome": aluno.nome}, status_code=400)
+
+    verificar_e_registrar_pico(db)
+    if aluno.telefone:
+        asyncio.create_task(agendar_pesquisa_satisfacao(aluno.id, refeicao.id))
+
+    return JSONResponse({
+        "sucesso": True,
+        "aluno_nome": aluno.nome,
+        "aluno_matricula": aluno.matricula,
+        "tipo": tipo_enum.value,
+        "custo": str(refeicao.creditos_utilizados),
+        "saldo_restante": str(aluno.creditos),
+    })
 
 
 # ─── Satisfação — painel de resultados ───────────────────────────────────────
@@ -806,6 +870,8 @@ async def painel_satisfacao(request: Request, db: Session = Depends(get_db)):
     respostas = (
         db.query(SatisfacaoResposta, Aluno)
         .join(Aluno, SatisfacaoResposta.aluno_id == Aluno.id)
+        .join(SatisfacaoEnvio, SatisfacaoResposta.envio_id == SatisfacaoEnvio.id)
+        .filter(SatisfacaoEnvio.respondido == True)
         .order_by(SatisfacaoResposta.respondido_em.desc())
         .limit(100)
         .all()
@@ -816,8 +882,37 @@ async def painel_satisfacao(request: Request, db: Session = Depends(get_db)):
 
     media = None
     if total_respondidos:
-        soma = db.query(func.sum(SatisfacaoResposta.nota)).scalar() or 0
-        media = round(soma / total_respondidos, 2)
+        soma_comida, soma_servico = (
+            db.query(func.sum(SatisfacaoResposta.nota_comida), func.sum(SatisfacaoResposta.nota_servico))
+            .join(SatisfacaoEnvio, SatisfacaoResposta.envio_id == SatisfacaoEnvio.id)
+            .filter(SatisfacaoEnvio.respondido == True)
+            .first()
+        )
+        media = round(((soma_comida or 0) + (soma_servico or 0)) / (total_respondidos * 2), 2)
+
+    csrf = gerar_csrf_token()
+    BR = timedelta(hours=-3)
+    resposta = templates.TemplateResponse(request, "admin/satisfacao.html", {
+        "admin": admin,
+        "respostas": respostas,
+        "total_enviados": total_enviados,
+        "total_respondidos": total_respondidos,
+        "media": media,
+        "BR": BR,
+        "csrf_token": csrf,
+    })
+    resposta.set_cookie("csrf_token", csrf, httponly=False, samesite="lax")
+    return resposta
+
+
+@router.get("/alertas", response_class=HTMLResponse)
+async def painel_alertas(request: Request, db: Session = Depends(get_db)):
+    try:
+        payload = obter_admin_atual(request)
+    except HTTPException:
+        return _redir_login()
+
+    admin = _get_admin(payload, db)
 
     picos = (
         db.query(PicoMovimento)
@@ -828,16 +923,17 @@ async def painel_satisfacao(request: Request, db: Session = Depends(get_db)):
 
     status_pico = obter_status_pico(db)
 
+    total_com_email = db.query(Aluno).filter(Aluno.ativo == True, Aluno.email.isnot(None), Aluno.email != "").count()
+    total_com_whatsapp = db.query(Aluno).filter(Aluno.ativo == True, Aluno.telefone.isnot(None), Aluno.telefone != "").count()
+
     csrf = gerar_csrf_token()
     BR = timedelta(hours=-3)
-    resposta = templates.TemplateResponse(request, "admin/satisfacao.html", {
+    resposta = templates.TemplateResponse(request, "admin/alertas.html", {
         "admin": admin,
-        "respostas": respostas,
-        "total_enviados": total_enviados,
-        "total_respondidos": total_respondidos,
-        "media": media,
         "picos": picos,
         "status_pico": status_pico,
+        "total_com_email": total_com_email,
+        "total_com_whatsapp": total_com_whatsapp,
         "BR": BR,
         "csrf_token": csrf,
     })
@@ -867,10 +963,12 @@ async def enviar_alerta_pico_manual(
 
     verificar_csrf(request, {"csrf_token": csrf_token})
 
-    texto = mensagem.strip() or (
-        "⚠️ O RU está com movimento intenso no momento. "
-        "Se possível, aguarde um pouco antes de vir para evitar filas."
-    )
+    texto = mensagem.strip()
+    if not texto:
+        return RedirectResponse(
+            url="/admin/alertas?erro=Selecione+uma+mensagem+pronta+ou+escreva+uma+antes+de+enviar",
+            status_code=303,
+        )
 
     todos_alunos = db.query(Aluno).filter(Aluno.ativo == True).all()
 
@@ -887,7 +985,7 @@ async def enviar_alerta_pico_manual(
     asyncio.create_task(_enviar_emails_background(emails, texto))
 
     return RedirectResponse(
-        url=f"/admin/satisfacao?sucesso=Alerta+disparado+para+{len(emails)}+emails+e+{whatsapp_ok}+WhatsApp",
+        url=f"/admin/alertas?sucesso=Alerta+disparado+para+{len(emails)}+emails+e+{whatsapp_ok}+WhatsApp",
         status_code=303,
     )
 
@@ -909,45 +1007,39 @@ async def ler_cardapio_story(
     verificar_csrf(request, {"csrf_token": csrf_token})
 
     try:
-        import anthropic
+        from google import genai
+        from google.genai import types
+
         dados_imagem = await imagem.read()
-        imagem_b64 = base64.standard_b64encode(dados_imagem).decode("utf-8")
         media_type = imagem.content_type or "image/jpeg"
         if media_type not in ("image/jpeg", "image/png", "image/gif", "image/webp"):
             media_type = "image/jpeg"
 
         refeicao_label = "almoço" if tipo == "almoco" else "jantar"
-        client = anthropic.Anthropic()
-        resposta = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=400,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image",
-                        "source": {"type": "base64", "media_type": media_type, "data": imagem_b64},
-                    },
-                    {
-                        "type": "text",
-                        "text": (
-                            f"Esta é uma imagem do cardápio do Restaurante Universitário para o {refeicao_label}.\n\n"
-                            "Itens FIXOS que sempre estão presentes (não precisa extrair): "
-                            "arroz branco, arroz integral, feijão, fruta da época (sobremesa).\n\n"
-                            "Extraia APENAS o que muda:\n"
-                            "- prato_principal: proteína principal\n"
-                            "- opcao_vegetariana: opção sem carne (vazio se não aparecer)\n"
-                            "- acomp_extra: acompanhamentos além dos fixos (vazio se não houver)\n"
-                            "- observacao: informações especiais (vazio se não houver)\n\n"
-                            "Responda SOMENTE com JSON válido sem markdown:\n"
-                            '{"prato_principal":"","opcao_vegetariana":"","acomp_extra":"","observacao":""}'
-                        ),
-                    },
-                ],
-            }],
+        client = genai.Client(api_key=GEMINI_API_KEY)
+        resposta = client.models.generate_content(
+            model="gemini-3.1-flash-lite",
+            contents=[
+                types.Part.from_bytes(data=dados_imagem, mime_type=media_type),
+                (
+                    f"Esta é uma imagem do cardápio do Restaurante Universitário para o {refeicao_label}.\n\n"
+                    "Itens FIXOS que sempre estão presentes (não precisa extrair): "
+                    "arroz branco, arroz integral, feijão, fruta da época (sobremesa).\n\n"
+                    "Extraia APENAS o que muda:\n"
+                    "- prato_principal: proteína principal\n"
+                    "- opcao_vegetariana: opção sem carne (vazio se não aparecer)\n"
+                    "- legumes: legumes/vegetais cozidos ou refogados (vazio se não houver)\n"
+                    "- salada: itens da salada, ex: alface, tomate, cenoura (vazio se não houver)\n"
+                    "- observacao: informações especiais como alergênicos (glúten, lactose etc.), sempre citando "
+                    "o nome do prato a que se refere, ex: 'Filé de frango contém glúten e lactose' "
+                    "(vazio se não houver)\n\n"
+                    "Responda SOMENTE com JSON válido sem markdown:\n"
+                    '{"prato_principal":"","opcao_vegetariana":"","legumes":"","salada":"","observacao":""}'
+                ),
+            ],
         )
 
-        texto = resposta.content[0].text.strip()
+        texto = (resposta.text or "").strip()
         if "```" in texto:
             partes = texto.split("```")
             texto = partes[1] if len(partes) > 1 else partes[0]
@@ -958,23 +1050,23 @@ async def ler_cardapio_story(
         dados = json.loads(texto)
         prato   = dados.get("prato_principal", "").strip()
         veg     = dados.get("opcao_vegetariana", "").strip()
-        extra   = dados.get("acomp_extra", "").strip()
+        legumes = dados.get("legumes", "").strip()
+        salada  = dados.get("salada", "").strip()
         obs_raw = dados.get("observacao", "").strip()
 
-        acomp_parts = ["Arroz branco, arroz integral, feijão"]
-        if extra:
-            acomp_parts.append(extra)
-        acompanhamentos = " · ".join(acomp_parts)
-
-        observacao = f"Vegetariana: {veg}" if veg else ""
+        observacao = "Cardápio sujeito a alterações"
         if obs_raw:
-            observacao = f"{observacao} | {obs_raw}" if observacao else obs_raw
+            observacao = f"{observacao} | {obs_raw}"
 
         return JSONResponse({
-            "prato_principal": prato,
-            "acompanhamentos": acompanhamentos,
-            "sobremesa": "Fruta da época",
-            "observacao": observacao,
+            "prato_principal": prato.upper(),
+            "arroz": "ARROZ BRANCO, ARROZ INTEGRAL",
+            "feijao": "FEIJÃO",
+            "legumes": legumes.upper(),
+            "salada": salada.upper(),
+            "sobremesa": "FRUTA DA ÉPOCA",
+            "vegetariano": veg.upper(),
+            "observacao": obs_raw.upper(),
         })
 
     except json.JSONDecodeError:
@@ -1030,8 +1122,12 @@ async def salvar_cardapio(
     data: str = Form(...),
     tipo: str = Form(...),
     prato_principal: str = Form(""),
-    acompanhamentos: str = Form(""),
+    arroz: str = Form(""),
+    feijao: str = Form(""),
+    legumes: str = Form(""),
+    salada: str = Form(""),
     sobremesa: str = Form(""),
+    vegetariano: str = Form(""),
     observacao: str = Form(""),
     csrf_token: str = Form(...),
     db: Session = Depends(get_db),
@@ -1056,19 +1152,59 @@ async def salvar_cardapio(
 
     if cardapio:
         cardapio.prato_principal = prato_principal.strip() or None
-        cardapio.acompanhamentos = acompanhamentos.strip() or None
+        cardapio.arroz           = arroz.strip() or None
+        cardapio.feijao          = feijao.strip() or None
+        cardapio.legumes         = legumes.strip() or None
+        cardapio.salada          = salada.strip() or None
         cardapio.sobremesa       = sobremesa.strip() or None
+        cardapio.vegetariano     = vegetariano.strip() or None
         cardapio.observacao      = observacao.strip() or None
     else:
         cardapio = Cardapio(
             data=data_obj,
             tipo=tipo_enum,
             prato_principal=prato_principal.strip() or None,
-            acompanhamentos=acompanhamentos.strip() or None,
+            arroz=arroz.strip() or None,
+            feijao=feijao.strip() or None,
+            legumes=legumes.strip() or None,
+            salada=salada.strip() or None,
             sobremesa=sobremesa.strip() or None,
+            vegetariano=vegetariano.strip() or None,
             observacao=observacao.strip() or None,
         )
         db.add(cardapio)
 
     db.commit()
     return RedirectResponse(url="/admin/cardapio?sucesso=Cardápio+salvo+com+sucesso", status_code=303)
+
+
+@router.post("/cardapio/excluir")
+async def excluir_cardapio(
+    request: Request,
+    data: str = Form(...),
+    tipo: str = Form(...),
+    csrf_token: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    try:
+        obter_admin_atual(request)
+    except HTTPException:
+        return _redir_login()
+
+    verificar_csrf(request, {"csrf_token": csrf_token})
+
+    try:
+        data_obj = date.fromisoformat(data)
+        tipo_enum = TipoRefeicao(tipo)
+    except (ValueError, KeyError):
+        return RedirectResponse(url="/admin/cardapio?erro=Dados+inválidos", status_code=303)
+
+    cardapio = db.query(Cardapio).filter(
+        Cardapio.data == data_obj,
+        Cardapio.tipo == tipo_enum,
+    ).first()
+    if cardapio:
+        db.delete(cardapio)
+        db.commit()
+
+    return RedirectResponse(url="/admin/cardapio?sucesso=Cardápio+excluído+com+sucesso", status_code=303)

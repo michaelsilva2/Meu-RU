@@ -1,0 +1,35 @@
+{% macro toast_ok(titulo, subtitulo='') %}
+<div id="msg-toast" style="position:fixed;top:80px;right:24px;z-index:9999;width:310px;border-radius:18px;background:white;box-shadow:0 24px 60px rgba(0,0,0,0.13);overflow:hidden;animation:toastSlide .3s ease;">
+    <div style="display:flex;align-items:center;gap:14px;padding:16px 18px 14px;">
+        <div style="width:42px;height:42px;border-radius:13px;background:linear-gradient(135deg,#F47920,#E03D3D);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+        </div>
+        <div style="flex:1;min-width:0;">
+            <p style="font-weight:800;font-size:14px;color:#111827;margin:0;letter-spacing:-0.01em;">{{ titulo }}</p>
+            {% if subtitulo %}<p style="font-size:12px;color:#9CA3AF;margin:3px 0 0;font-weight:500;">{{ subtitulo }}</p>{% endif %}
+        </div>
+        <button onclick="this.closest('#msg-toast').remove()" style="background:none;border:none;cursor:pointer;color:#D1D5DB;font-size:20px;line-height:1;padding:0;flex-shrink:0;">&times;</button>
+    </div>
+    <div style="height:3px;background:#F3F4F6;">
+        <div id="toast-bar" style="height:100%;background:linear-gradient(90deg,#F47920,#E03D3D);width:100%;transition:width 4s linear;"></div>
+    </div>
+</div>
+{% endmacro %}
+
+{% macro toast_err(titulo, subtitulo='') %}
+<div id="msg-toast" style="position:fixed;top:80px;right:24px;z-index:9999;width:310px;border-radius:18px;background:white;box-shadow:0 24px 60px rgba(0,0,0,0.13);overflow:hidden;animation:toastSlide .3s ease;">
+    <div style="display:flex;align-items:center;gap:14px;padding:16px 18px 14px;">
+        <div style="width:42px;height:42px;border-radius:13px;background:linear-gradient(135deg,#F87171,#EF4444);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </div>
+        <div style="flex:1;min-width:0;">
+            <p style="font-weight:800;font-size:14px;color:#111827;margin:0;letter-spacing:-0.01em;">{{ titulo }}</p>
+            {% if subtitulo %}<p style="font-size:12px;color:#9CA3AF;margin:3px 0 0;font-weight:500;">{{ subtitulo }}</p>{% endif %}
+        </div>
+        <button onclick="this.closest('#msg-toast').remove()" style="background:none;border:none;cursor:pointer;color:#D1D5DB;font-size:20px;line-height:1;padding:0;flex-shrink:0;">&times;</button>
+    </div>
+    <div style="height:3px;background:#F3F4F6;">
+        <div id="toast-bar" style="height:100%;background:linear-gradient(90deg,#F87171,#EF4444);width:100%;transition:width 4s linear;"></div>
+    </div>
+</div>
+{% endmacro %}

@@ -2,14 +2,16 @@
 scheduler.py — Alertas automáticos de abertura e fechamento do RU.
 
 Horários (horário de Brasília, seg–sex, exceto feriados):
+  10:00 → Pergunta por WhatsApp se o aluno vai almoçar hoje
   11:00 → RU abriu para o almoço  + cardápio do dia
   13:30 → RU fecha o almoço em 30 min
+  18:00 → Pergunta por WhatsApp se o aluno vai jantar hoje
   19:00 → RU abriu para o jantar  + cardápio da noite
   20:30 → RU fecha o jantar em 30 min
 """
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -18,8 +20,9 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from config import FERIADOS_NACIONAIS
 from database import SessionLocal
-from models import Aluno, Cardapio, TipoRefeicao, HistoricoRecarga, StatusRecarga
+from models import Aluno, Cardapio, TipoRefeicao, HistoricoRecarga, StatusRecarga, AcessoQRCode
 from email_service import enviar_emails_alerta_lote
+from whatsapp_bot import enviar_confirmacoes_presenca, enviar_alerta_whatsapp
 import payments
 
 logger = logging.getLogger(__name__)
@@ -58,10 +61,18 @@ def _texto_cardapio(cardapio: Cardapio | None, refeicao: str) -> str:
     linhas = []
     if cardapio.prato_principal:
         linhas.append(f"🍽️ Prato principal: {cardapio.prato_principal}")
-    if cardapio.acompanhamentos:
-        linhas.append(f"🥗 Acompanhamentos: {cardapio.acompanhamentos}")
+    if cardapio.arroz:
+        linhas.append(f"🍚 Arroz: {cardapio.arroz}")
+    if cardapio.feijao:
+        linhas.append(f"🫘 Feijão: {cardapio.feijao}")
+    if cardapio.legumes:
+        linhas.append(f"🥦 Legumes: {cardapio.legumes}")
+    if cardapio.salada:
+        linhas.append(f"🥗 Salada: {cardapio.salada}")
     if cardapio.sobremesa:
         linhas.append(f"🍮 Sobremesa: {cardapio.sobremesa}")
+    if cardapio.vegetariano:
+        linhas.append(f"🌱 Vegetariano: {cardapio.vegetariano}")
     if cardapio.observacao:
         linhas.append(f"ℹ️ {cardapio.observacao}")
     return "\n".join(linhas) if linhas else "Cardápio disponível no restaurante."
@@ -72,7 +83,26 @@ def _disparar(emails: list[str], assunto: str, mensagem: str):
     loop.run_in_executor(None, enviar_emails_alerta_lote, emails, assunto, mensagem)
 
 
+def _disparar_whatsapp(mensagem: str):
+    loop = asyncio.get_event_loop()
+    loop.run_in_executor(None, enviar_alerta_whatsapp, mensagem)
+
+
 # ── Jobs ──────────────────────────────────────────────────────────────────────
+
+async def confirmar_presenca_almoco():
+    if _hoje_e_feriado():
+        return
+    loop = asyncio.get_event_loop()
+    loop.run_in_executor(None, enviar_confirmacoes_presenca, TipoRefeicao.almoco, datetime.now(BR_TZ).date())
+
+
+async def confirmar_presenca_jantar():
+    if _hoje_e_feriado():
+        return
+    loop = asyncio.get_event_loop()
+    loop.run_in_executor(None, enviar_confirmacoes_presenca, TipoRefeicao.jantar, datetime.now(BR_TZ).date())
+
 
 async def alerta_abertura_almoco():
     if _hoje_e_feriado():
@@ -81,8 +111,13 @@ async def alerta_abertura_almoco():
     cardapio = _get_cardapio(TipoRefeicao.almoco)
     menu = _texto_cardapio(cardapio, "almoço")
     mensagem = f"🍽️ O RU está aberto para o almoço!\n\n⏰ Horário: 11h às 14h\n\n{menu}"
+    mensagem_whatsapp = (
+        "🍽️ O RU está aberto para o almoço!\n\n⏰ Horário: 11h às 14h\n\n"
+        "📋 Digite *CARDÁPIO* para ver o cardápio de hoje."
+    )
     emails = _get_emails()
     _disparar(emails, "🍽️ RU aberto — Almoço", mensagem)
+    _disparar_whatsapp(mensagem_whatsapp)
     logger.info("Alerta abertura almoço disparado para %d alunos.", len(emails))
 
 
@@ -92,6 +127,7 @@ async def alerta_fechamento_almoco():
     mensagem = "⏰ O RU fecha para o almoço em 30 minutos (às 14h).\n\nSe ainda não almoçou, venha logo!"
     emails = _get_emails()
     _disparar(emails, "⏰ RU fecha em 30 min — Almoço", mensagem)
+    _disparar_whatsapp(mensagem)
     logger.info("Alerta fechamento almoço disparado.")
 
 
@@ -102,8 +138,13 @@ async def alerta_abertura_jantar():
     cardapio = _get_cardapio(TipoRefeicao.jantar)
     menu = _texto_cardapio(cardapio, "jantar")
     mensagem = f"🌙 O RU está aberto para o jantar!\n\n⏰ Horário: 19h às 21h\n\n{menu}"
+    mensagem_whatsapp = (
+        "🌙 O RU está aberto para o jantar!\n\n⏰ Horário: 19h às 21h\n\n"
+        "📋 Digite *CARDÁPIO* para ver o cardápio de hoje."
+    )
     emails = _get_emails()
     _disparar(emails, "🌙 RU aberto — Jantar", mensagem)
+    _disparar_whatsapp(mensagem_whatsapp)
     logger.info("Alerta abertura jantar disparado para %d alunos.", len(emails))
 
 
@@ -113,6 +154,7 @@ async def alerta_fechamento_jantar():
     mensagem = "⏰ O RU fecha para o jantar em 30 minutos (às 21h).\n\nÚltima chance de jantar hoje!"
     emails = _get_emails()
     _disparar(emails, "⏰ RU fecha em 30 min — Jantar", mensagem)
+    _disparar_whatsapp(mensagem)
     logger.info("Alerta fechamento jantar disparado.")
 
 
@@ -120,9 +162,9 @@ async def alerta_fechamento_jantar():
 
 async def confirmar_pagamentos_pendentes():
     """
-    Fallback para quando o webhook do Mercado Pago não chega (ex: localhost
-    sem ngrok, ou uma entrega perdida). Consulta a API do MP pra cada
-    cobrança Pix ainda pendente e não expirada.
+    Fallback para o caso do aluno fechar a tela antes do polling do frontend
+    aprovar a cobrança sozinho. Garante que toda cobrança Pix simulada acabe
+    confirmada (ou expirada) mesmo sem ninguém olhando a tela.
     """
     db = SessionLocal()
     try:
@@ -134,7 +176,7 @@ async def confirmar_pagamentos_pendentes():
         ).all()
         for recarga in pendentes:
             try:
-                payments.confirmar_pagamento(db, recarga.gateway_payment_id)
+                payments.confirmar_pix_simulado(db, recarga)
             except Exception:
                 logger.exception("Falha ao confirmar pagamento pendente id=%s", recarga.gateway_payment_id)
     finally:
@@ -161,10 +203,35 @@ async def expirar_pix_pendentes():
         db.close()
 
 
+# ── QR code de acesso: limpeza de tokens antigos ────────────────────────────
+
+async def limpar_qrcodes_antigos():
+    """Apaga tokens de QR vencidos há mais de 1h — cada tela de QR gera um novo a cada ~20s."""
+    db = SessionLocal()
+    try:
+        limite = datetime.utcnow() - timedelta(hours=1)
+        removidos = db.query(AcessoQRCode).filter(AcessoQRCode.expira_em < limite).delete()
+        if removidos:
+            db.commit()
+            logger.info("%d token(s) de QR code antigo(s) removido(s).", removidos)
+    finally:
+        db.close()
+
+
 # ── Criação do scheduler ──────────────────────────────────────────────────────
 
 def criar_scheduler() -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler(timezone=BR_TZ)
+    scheduler.add_job(
+        confirmar_presenca_almoco,
+        CronTrigger(hour=10, minute=0, day_of_week="mon-fri", timezone=BR_TZ),
+        id="confirmar_presenca_almoco",
+    )
+    scheduler.add_job(
+        confirmar_presenca_jantar,
+        CronTrigger(hour=18, minute=0, day_of_week="mon-fri", timezone=BR_TZ),
+        id="confirmar_presenca_jantar",
+    )
     scheduler.add_job(
         alerta_abertura_almoco,
         CronTrigger(hour=11, minute=0, day_of_week="mon-fri", timezone=BR_TZ),
@@ -194,5 +261,10 @@ def criar_scheduler() -> AsyncIOScheduler:
         expirar_pix_pendentes,
         IntervalTrigger(minutes=5),
         id="expirar_pix_pendentes",
+    )
+    scheduler.add_job(
+        limpar_qrcodes_antigos,
+        IntervalTrigger(minutes=30),
+        id="limpar_qrcodes_antigos",
     )
     return scheduler

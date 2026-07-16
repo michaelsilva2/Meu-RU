@@ -1,106 +1,104 @@
 """
-payments.py — Integração com Mercado Pago (Pix) para recarga de créditos.
+payments.py — Simulador de pagamentos (Pix e cartão) para recarga de créditos.
+
+Não existe integração com nenhum gateway real aqui — tudo (QR code Pix,
+aprovação, recusa) é gerado e decidido localmente. O objetivo é representar
+o fluxo de um pagamento de verdade (mesmo formato de BR Code do Pix, mesmo
+tempo de espera até confirmar, mesma possibilidade de cartão ser recusado),
+sem mover dinheiro nem depender de credenciais de produção.
 
 Fluxo:
-  1. criar_cobranca_pix()      → gera uma cobrança Pix pendente
-  2. buscar_pagamento()        → consulta o status real de um pagamento na API do MP
-  3. validar_assinatura_webhook() → valida a notificação recebida em /webhook/mercadopago
-  4. confirmar_pagamento()     → aplica o crédito de forma idempotente
-
-Nunca confiar no corpo do webhook para status/valor — sempre buscar o
-pagamento na API do Mercado Pago antes de creditar (buscar_pagamento).
+  1. criar_cobranca_pix()      → gera um Pix "pendente" com QR/copia-e-cola
+  2. confirmar_pix_simulado()  → aprova sozinho depois de alguns segundos
+     (chamado a cada consulta de status do frontend e pelo job de fallback)
+  3. criar_pagamento_cartao()  → simula uma autorização de cartão na hora
 """
-import hashlib
-import hmac
-import logging
-import secrets
+import base64
+import io
+import re
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from decimal import Decimal
 
-import mercadopago
+import qrcode
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from config import (
-    BASE_URL,
-    MERCADOPAGO_ACCESS_TOKEN,
-    MERCADOPAGO_WEBHOOK_SECRET,
-    PIX_EXPIRACAO_MINUTOS,
-)
-from models import Aluno, HistoricoRecarga, StatusRecarga, TipoRecarga
-
-logger = logging.getLogger(__name__)
-
-_sdk: mercadopago.SDK | None = None
-
-
-def _get_sdk() -> mercadopago.SDK:
-    global _sdk
-    if _sdk is None:
-        _sdk = mercadopago.SDK(MERCADOPAGO_ACCESS_TOKEN)
-    return _sdk
+from config import PIX_EXPIRACAO_MINUTOS, PAGAMENTO_SIMULADO_DELAY_SEGUNDOS
+from models import Aluno, CartaoSalvo, HistoricoRecarga, StatusRecarga, TipoRecarga
 
 
 class PagamentoError(Exception):
     pass
 
 
-def criar_cobranca_pix(db: Session, aluno: Aluno, valor: Decimal) -> HistoricoRecarga:
+# ─── Pix simulado ────────────────────────────────────────────────────────────
+
+def _crc16_ccitt(payload: str) -> str:
+    """CRC16/CCITT-FALSE — o mesmo checksum usado no BR Code (Pix) real."""
+    crc = 0xFFFF
+    for byte in payload.encode("utf-8"):
+        crc ^= byte << 8
+        for _ in range(8):
+            crc = ((crc << 1) ^ 0x1021) & 0xFFFF if (crc & 0x8000) else (crc << 1) & 0xFFFF
+    return format(crc, "04X")
+
+
+def _tlv(id_campo: str, valor_campo: str) -> str:
+    return f"{id_campo}{len(valor_campo):02d}{valor_campo}"
+
+
+def _gerar_pix_copia_cola(valor: Decimal, referencia: str) -> str:
     """
-    Cria uma cobrança Pix no Mercado Pago e uma linha `pendente` em
-    HistoricoRecarga. Não credita nada — o crédito só acontece quando o
-    pagamento for confirmado (via webhook ou poller).
+    Monta um payload no formato BR Code (EMV) real — visualmente idêntico a
+    um Pix de verdade — mas com uma chave fictícia, que não corresponde a
+    nenhuma conta bancária existente.
     """
-    referencia = str(uuid.uuid4())
-    expira_em = datetime.now(timezone.utc) + timedelta(minutes=PIX_EXPIRACAO_MINUTOS)
-
-    nome_partes = aluno.nome.strip().split(" ", 1)
-    primeiro_nome = nome_partes[0]
-    sobrenome = nome_partes[1] if len(nome_partes) > 1 else primeiro_nome
-
-    payment_data = {
-        "transaction_amount": float(valor),
-        "description": "Recarga de créditos — Meu RU",
-        "payment_method_id": "pix",
-        "payer": {
-            "email": aluno.email,
-            "first_name": primeiro_nome,
-            "last_name": sobrenome,
-        },
-        "external_reference": referencia,
-        "notification_url": f"{BASE_URL}/webhook/mercadopago",
-        "date_of_expiration": expira_em.isoformat(timespec="milliseconds"),
-    }
-
-    resultado = _get_sdk().payment().create(
-        payment_data,
-        request_options=mercadopago.config.RequestOptions(
-            custom_headers={"X-Idempotency-Key": referencia},
-        ),
+    conta = _tlv("00", "BR.GOV.BCB.PIX") + _tlv("01", "00000000000")
+    payload = (
+        _tlv("00", "01")
+        + _tlv("26", conta)
+        + _tlv("52", "0000")
+        + _tlv("53", "986")
+        + _tlv("54", f"{valor:.2f}")
+        + _tlv("58", "BR")
+        + _tlv("59", "MEU RU")
+        + _tlv("60", "GOIANIA")
+        + _tlv("62", _tlv("05", referencia.replace("-", "")[:25]))
     )
+    payload_com_marcador_crc = payload + "6304"
+    return payload_com_marcador_crc + _crc16_ccitt(payload_com_marcador_crc)
 
-    if resultado.get("status") not in (200, 201):
-        logger.error("Falha ao criar cobrança Pix: %s", resultado)
-        raise PagamentoError("Não foi possível gerar a cobrança Pix agora.")
 
-    resposta = resultado["response"]
-    transacao = resposta.get("point_of_interaction", {}).get("transaction_data", {})
+def _gerar_qr_base64(conteudo: str) -> str:
+    imagem = qrcode.make(conteudo)
+    buffer = io.BytesIO()
+    imagem.save(buffer, format="PNG")
+    return base64.b64encode(buffer.getvalue()).decode("ascii")
+
+
+def criar_cobranca_pix(db: Session, aluno: Aluno, valor: Decimal) -> HistoricoRecarga:
+    """Cria uma cobrança Pix "pendente" com QR code e copia-e-cola simulados."""
+    referencia = str(uuid.uuid4())
+    agora = datetime.utcnow()
+    expira_em = agora + timedelta(minutes=PIX_EXPIRACAO_MINUTOS)
+    copia_cola = _gerar_pix_copia_cola(valor, referencia)
 
     recarga = HistoricoRecarga(
         aluno_id=aluno.id,
         admin_id=None,
         tipo=TipoRecarga.recarga,
         valor=valor,
-        observacao="Recarga Pix iniciada pelo aluno",
+        observacao="Recarga Pix iniciada pelo aluno (simulada)",
         status=StatusRecarga.pendente,
         metodo_pagamento="pix",
-        gateway_payment_id=str(resposta["id"]),
+        gateway_payment_id=f"SIM-{referencia}",
         external_reference=referencia,
-        pix_copia_cola=transacao.get("qr_code"),
-        pix_qr_base64=transacao.get("qr_code_base64"),
-        expira_em=expira_em.replace(tzinfo=None),
-        atualizado_em=datetime.utcnow(),
+        pix_copia_cola=copia_cola,
+        pix_qr_base64=_gerar_qr_base64(copia_cola),
+        data_hora=agora,
+        expira_em=expira_em,
+        atualizado_em=agora,
     )
     db.add(recarga)
     db.commit()
@@ -108,82 +106,201 @@ def criar_cobranca_pix(db: Session, aluno: Aluno, valor: Decimal) -> HistoricoRe
     return recarga
 
 
-def obter_ou_criar_customer(db: Session, aluno: Aluno) -> str:
+def confirmar_pix_simulado(db: Session, recarga: HistoricoRecarga) -> HistoricoRecarga:
     """
-    Retorna o customer_id do aluno no Mercado Pago, criando-o se ainda não
-    existir. Necessário pro Card Payment Brick listar/salvar cartões.
+    Aprova sozinha uma cobrança Pix pendente depois de
+    PAGAMENTO_SIMULADO_DELAY_SEGUNDOS — representa o tempo que um aluno
+    levaria pra abrir o app do banco e escanear o QR code. Chamado tanto
+    pelo polling do frontend quanto pelo job de fallback do scheduler, e é
+    seguro de chamar mais de uma vez para a mesma recarga.
     """
-    if aluno.mp_customer_id:
-        return aluno.mp_customer_id
+    if recarga.status != StatusRecarga.pendente:
+        return recarga
 
-    resultado = _get_sdk().customer().create({"email": aluno.email})
-    if resultado.get("status") not in (200, 201):
-        # Cliente já existe no MP pra esse email (comum em reprocessos/dev) — busca em vez de falhar.
-        if resultado.get("status") == 400 and "already exists" in str(resultado.get("response", "")).lower():
-            busca = _get_sdk().customer().search({"email": aluno.email})
-            resultados = busca.get("response", {}).get("results", [])
-            if resultados:
-                aluno.mp_customer_id = resultados[0]["id"]
-                db.commit()
-                return aluno.mp_customer_id
-        logger.error("Falha ao criar customer no Mercado Pago: %s", resultado)
-        raise PagamentoError("Não foi possível preparar o pagamento por cartão agora.")
+    agora = datetime.utcnow()
+    if recarga.expira_em and agora >= recarga.expira_em:
+        db.execute(
+            text(
+                "UPDATE historico_recargas SET status = :status, atualizado_em = :agora "
+                "WHERE id = :id AND status = 'pendente'"
+            ),
+            {"status": StatusRecarga.expirado.value, "agora": agora, "id": recarga.id},
+        )
+        db.commit()
+        db.refresh(recarga)
+        return recarga
 
-    aluno.mp_customer_id = resultado["response"]["id"]
+    if agora - recarga.data_hora < timedelta(seconds=PAGAMENTO_SIMULADO_DELAY_SEGUNDOS):
+        return recarga
+
+    _aprovar_recarga_idempotente(db, recarga)
+    db.refresh(recarga)
+    return recarga
+
+
+def _aprovar_recarga_idempotente(db: Session, recarga: HistoricoRecarga) -> bool:
+    """
+    UPDATE condicional: só aplica o crédito se a recarga ainda estiver
+    pendente, evitando duplicar crédito caso o polling do frontend e o job
+    de fallback processem a mesma recarga ao mesmo tempo.
+    """
+    resultado = db.execute(
+        text(
+            "UPDATE historico_recargas SET status = :status, atualizado_em = :agora "
+            "WHERE id = :id AND status = 'pendente'"
+        ),
+        {"status": StatusRecarga.aprovado.value, "agora": datetime.utcnow(), "id": recarga.id},
+    )
+    if resultado.rowcount != 1:
+        db.rollback()
+        return False
+
+    aluno = db.query(Aluno).filter(Aluno.id == recarga.aluno_id).first()
+    if aluno:
+        aluno.creditos = Decimal(str(aluno.creditos)) + Decimal(str(recarga.valor))
     db.commit()
-    return aluno.mp_customer_id
+    return True
 
 
-def criar_pagamento_cartao(db: Session, aluno: Aluno, valor: Decimal, dados_brick: dict) -> HistoricoRecarga:
+# ─── Cartão simulado ─────────────────────────────────────────────────────────
+
+def _luhn_valido(numero: str) -> bool:
+    if not numero.isdigit() or not (13 <= len(numero) <= 19):
+        return False
+    soma = 0
+    dobrar = False
+    for digito in reversed(numero):
+        d = int(digito)
+        if dobrar:
+            d *= 2
+            if d > 9:
+                d -= 9
+        soma += d
+        dobrar = not dobrar
+    return soma % 10 == 0
+
+
+def _validade_valida(validade: str) -> bool:
+    m = re.match(r"^(\d{2})/(\d{2})$", validade or "")
+    if not m:
+        return False
+    mes, ano = int(m.group(1)), 2000 + int(m.group(2))
+    if not (1 <= mes <= 12):
+        return False
+    proximo_mes = datetime(ano + (mes // 12), (mes % 12) + 1, 1)
+    return proximo_mes > datetime.utcnow()
+
+
+def _detectar_bandeira(numero: str) -> str:
+    if numero.startswith("4"):
+        return "Visa"
+    if numero[:2] in {"51", "52", "53", "54", "55"} or 2221 <= int(numero[:4]) <= 2720:
+        return "Mastercard"
+    if numero[:2] in {"34", "37"}:
+        return "Amex"
+    return "Cartão"
+
+
+def _salvar_cartao(db: Session, aluno: Aluno, numero: str, nome: str, tipo: str) -> None:
+    """Guarda (ou atualiza) a versão mascarada do cartão pra reuso futuro."""
+    ultimos_digitos = numero[-4:]
+    bandeira = _detectar_bandeira(numero)
+
+    existente = db.query(CartaoSalvo).filter(
+        CartaoSalvo.aluno_id == aluno.id,
+        CartaoSalvo.ultimos_digitos == ultimos_digitos,
+        CartaoSalvo.bandeira == bandeira,
+        CartaoSalvo.tipo == tipo,
+    ).first()
+    if existente:
+        existente.nome_impresso = nome
+        db.commit()
+        return
+
+    db.add(CartaoSalvo(
+        aluno_id=aluno.id,
+        ultimos_digitos=ultimos_digitos,
+        bandeira=bandeira,
+        nome_impresso=nome,
+        tipo=tipo,
+    ))
+    db.commit()
+
+
+def pagar_com_cartao_salvo(db: Session, aluno: Aluno, valor: Decimal, cartao: CartaoSalvo) -> HistoricoRecarga:
     """
-    Cria um pagamento por cartão via Card Payment Brick. Diferente do Pix,
-    resolve na hora — por isso já chama confirmar_pagamento() em seguida
-    pra aplicar o crédito imediatamente se aprovado.
+    Paga com um cartão já salvo — sem pedir número/validade/CVV de novo,
+    igual qualquer carteira digital real. Cartões salvos cujos últimos 4
+    dígitos forem '0000' continuam sendo recusados, pela mesma convenção
+    usada em criar_pagamento_cartao.
+    """
+    referencia = str(uuid.uuid4())
+    aprovado = cartao.ultimos_digitos != "0000"
+
+    recarga = HistoricoRecarga(
+        aluno_id=aluno.id,
+        admin_id=None,
+        tipo=TipoRecarga.recarga,
+        valor=valor,
+        observacao=f"Recarga com cartão salvo ({cartao.bandeira} final {cartao.ultimos_digitos}, {cartao.tipo}) (simulada)",
+        status=StatusRecarga.pendente,
+        metodo_pagamento="cartao",
+        gateway_payment_id=f"SIM-{referencia}",
+        external_reference=referencia,
+        atualizado_em=datetime.utcnow(),
+    )
+    db.add(recarga)
+    db.commit()
+    db.refresh(recarga)
+
+    if aprovado:
+        _aprovar_recarga_idempotente(db, recarga)
+    else:
+        recarga.status = StatusRecarga.rejeitado
+        recarga.atualizado_em = datetime.utcnow()
+        db.commit()
+
+    db.refresh(recarga)
+    return recarga
+
+
+def criar_pagamento_cartao(db: Session, aluno: Aluno, valor: Decimal, dados_cartao: dict) -> HistoricoRecarga:
+    """
+    Simula uma autorização de cartão (crédito ou débito) na hora — sem
+    contato com nenhuma operadora real. Cartões terminados em 0000 são
+    recusados de propósito, representando também o caminho de pagamento
+    negado (mesma convenção usada por cartões de teste de gateways reais).
     """
     if not aluno.cpf:
         raise PagamentoError("CPF necessário para pagamento por cartão.")
 
-    customer_id = obter_ou_criar_customer(db, aluno)
+    numero = re.sub(r"\D", "", str(dados_cartao.get("numero", "")))
+    if not _luhn_valido(numero):
+        raise PagamentoError("Número de cartão inválido.")
+
+    if not _validade_valida(dados_cartao.get("validade")):
+        raise PagamentoError("Validade do cartão inválida ou vencida.")
+
+    cvv = re.sub(r"\D", "", str(dados_cartao.get("cvv", "")))
+    if not (3 <= len(cvv) <= 4):
+        raise PagamentoError("CVV inválido.")
+
+    if not str(dados_cartao.get("nome", "")).strip():
+        raise PagamentoError("Nome impresso no cartão é obrigatório.")
+
+    tipo_cartao = "debito" if dados_cartao.get("tipo") == "debito" else "credito"
     referencia = str(uuid.uuid4())
-
-    payment_data = {
-        "transaction_amount": float(valor),
-        "token": dados_brick["token"],
-        "description": "Recarga de créditos — Meu RU",
-        "installments": 1,
-        "payment_method_id": dados_brick["payment_method_id"],
-        "issuer_id": dados_brick.get("issuer_id"),
-        "external_reference": referencia,
-        "notification_url": f"{BASE_URL}/webhook/mercadopago",
-        "payer": {
-            "type": "customer",
-            "id": customer_id,
-            "email": aluno.email,
-            "identification": {"type": "CPF", "number": aluno.cpf},
-        },
-    }
-
-    resultado = _get_sdk().payment().create(
-        payment_data,
-        request_options=mercadopago.config.RequestOptions(
-            custom_headers={"X-Idempotency-Key": referencia},
-        ),
-    )
-    if resultado.get("status") not in (200, 201):
-        logger.error("Falha ao criar pagamento por cartão: %s", resultado)
-        raise PagamentoError("Não foi possível processar o pagamento por cartão agora.")
-
-    resposta = resultado["response"]
+    aprovado = not numero.endswith("0000")
 
     recarga = HistoricoRecarga(
         aluno_id=aluno.id,
         admin_id=None,
         tipo=TipoRecarga.recarga,
         valor=valor,
-        observacao="Recarga por cartão iniciada pelo aluno",
+        observacao=f"Recarga por cartão de {tipo_cartao} iniciada pelo aluno (simulada)",
         status=StatusRecarga.pendente,
         metodo_pagamento="cartao",
-        gateway_payment_id=str(resposta["id"]),
+        gateway_payment_id=f"SIM-{referencia}",
         external_reference=referencia,
         atualizado_em=datetime.utcnow(),
     )
@@ -191,92 +308,13 @@ def criar_pagamento_cartao(db: Session, aluno: Aluno, valor: Decimal, dados_bric
     db.commit()
     db.refresh(recarga)
 
-    # Cartão resolve na hora (approved/rejected) — confirma já, reaproveitando
-    # a mesma função idempotente usada pelo webhook e pelo poller do Pix.
-    confirmar_pagamento(db, recarga.gateway_payment_id)
+    if aprovado:
+        _aprovar_recarga_idempotente(db, recarga)
+        _salvar_cartao(db, aluno, numero, str(dados_cartao.get("nome", "")).strip(), tipo_cartao)
+    else:
+        recarga.status = StatusRecarga.rejeitado
+        recarga.atualizado_em = datetime.utcnow()
+        db.commit()
+
     db.refresh(recarga)
     return recarga
-
-
-def buscar_pagamento(payment_id: str) -> dict:
-    """Busca o status/valor autoritativo de um pagamento direto na API do MP."""
-    resultado = _get_sdk().payment().get(payment_id)
-    if resultado.get("status") != 200:
-        raise PagamentoError(f"Pagamento {payment_id} não encontrado no Mercado Pago.")
-    return resultado["response"]
-
-
-def validar_assinatura_webhook(x_signature: str | None, x_request_id: str | None, data_id: str | None) -> bool:
-    """
-    Valida o header `x-signature` enviado pelo Mercado Pago:
-    formato "ts=<timestamp>,v1=<hmac_sha256_hex>", calculado sobre o
-    manifesto "id:<data_id>;request-id:<x_request_id>;ts:<ts>;".
-    """
-    if not (x_signature and x_request_id and data_id and MERCADOPAGO_WEBHOOK_SECRET):
-        return False
-
-    partes = dict(p.split("=", 1) for p in x_signature.split(",") if "=" in p)
-    ts = partes.get("ts")
-    v1 = partes.get("v1")
-    if not ts or not v1:
-        return False
-
-    manifesto = f"id:{data_id.lower()};request-id:{x_request_id};ts:{ts};"
-    esperado = hmac.new(
-        MERCADOPAGO_WEBHOOK_SECRET.encode("utf-8"),
-        manifesto.encode("utf-8"),
-        hashlib.sha256,
-    ).hexdigest()
-
-    return secrets.compare_digest(esperado, v1)
-
-
-_STATUS_MP_PARA_INTERNO = {
-    "approved": StatusRecarga.aprovado,
-    "rejected": StatusRecarga.rejeitado,
-    "cancelled": StatusRecarga.cancelado,
-}
-
-
-def confirmar_pagamento(db: Session, payment_id: str) -> None:
-    """
-    Aplica o resultado autoritativo de um pagamento de forma idempotente.
-    Chamado tanto pelo webhook quanto pelo job de polling — pode ser
-    chamado múltiplas vezes para o mesmo payment_id sem duplicar crédito.
-    """
-    pagamento = buscar_pagamento(payment_id)
-    status_mp = pagamento.get("status")
-    novo_status = _STATUS_MP_PARA_INTERNO.get(status_mp)
-    if novo_status is None:
-        # "in_process", "pending" etc. — nada a fazer ainda
-        return
-
-    recarga = db.query(HistoricoRecarga).filter(
-        HistoricoRecarga.gateway_payment_id == str(payment_id),
-    ).first()
-    if not recarga:
-        logger.warning("Webhook para payment_id desconhecido: %s", payment_id)
-        return
-
-    if recarga.status != StatusRecarga.pendente:
-        return  # já processado — idempotente
-
-    # UPDATE condicional: só aplica se ainda estiver pendente, evita corrida
-    # entre webhook e poller processando o mesmo pagamento ao mesmo tempo.
-    resultado = db.execute(
-        text(
-            "UPDATE historico_recargas SET status = :novo_status, atualizado_em = :agora "
-            "WHERE id = :id AND status = 'pendente'"
-        ),
-        {"novo_status": novo_status.value, "agora": datetime.utcnow(), "id": recarga.id},
-    )
-    if resultado.rowcount != 1:
-        db.rollback()
-        return
-
-    if novo_status == StatusRecarga.aprovado:
-        aluno = db.query(Aluno).filter(Aluno.id == recarga.aluno_id).first()
-        if aluno:
-            aluno.creditos = Decimal(str(aluno.creditos)) + Decimal(str(recarga.valor))
-
-    db.commit()

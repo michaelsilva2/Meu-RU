@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+{% import "_toast_macros.html" as toasts %}
+{% block title %}Alertas — MEU RU{% endblock %}
+
+{% block body %}
+{% include "admin/_navbar.html" %}
+
+<main class="max-w-5xl mx-auto px-4 py-8">
+
+    <div class="mb-6">
+        <h1 class="text-2xl font-extrabold text-gray-900 tracking-tight">Alertas</h1>
+        <p class="text-gray-400 text-sm mt-1">Monitoramento de filas e envio de avisos aos alunos</p>
+    </div>
+
+    {% if request.query_params.get('sucesso') %}
+        {{ toasts.toast_ok(request.query_params.get('sucesso') | replace('+', ' ')) }}
+    {% endif %}
+    {% if request.query_params.get('erro') %}
+        {{ toasts.toast_err(request.query_params.get('erro') | replace('+', ' ')) }}
+    {% endif %}
+
+    {% set metade = status_pico.limiar / 2 %}
+
+    {% if status_pico.em_pico %}
+    <div class="rounded-2xl border-2 border-red-300 bg-red-50 px-5 py-4 mb-6 flex items-center gap-3 pico-alerta">
+        <span class="text-2xl">🚨</span>
+        <div>
+            <p class="text-sm font-bold text-red-700">RU com movimento intenso agora!</p>
+            <p class="text-xs text-red-500 mt-0.5">{{ status_pico.acessos }} acessos nos últimos {{ status_pico.janela_min }} min — considere enviar um alerta pros alunos.</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Info alertas automáticos + status de movimento -->
+    <div class="flex flex-col md:flex-row gap-4 mb-6 items-stretch">
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex-1">
+            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2.5">Horário de funcionamento do RU</p>
+            <div class="flex flex-nowrap gap-1.5 mb-4 overflow-x-auto">
+                <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-orange-50 text-orange-600 whitespace-nowrap">
+                    🌞 Almoço 11h–14h
+                </span>
+                <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-600 whitespace-nowrap">
+                    🌙 Jantar 19h–21h
+                </span>
+                <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-600 border border-blue-100 whitespace-nowrap">
+                    📧 {{ total_com_email }} com email
+                </span>
+                <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-green-50 text-green-600 border border-green-100 whitespace-nowrap">
+                    📱 {{ total_com_whatsapp }} com WhatsApp
+                </span>
+            </div>
+
+            <div class="flex items-center gap-3 pt-4 border-t border-gray-50">
+                <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                     style="background: linear-gradient(135deg, #F47920, #E03D3D);">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"/>
+                    </svg>
+                </div>
+                <h2 class="text-xl font-bold text-gray-900">Alertas enviados por WhatsApp e email</h2>
+            </div>
+        </div>
+
+        <div class="rounded-2xl border shadow-sm p-5 md:max-w-xs w-full
+            {% if status_pico.em_pico %}bg-red-50 border-red-200
+            {% elif status_pico.acessos >= metade %}bg-yellow-50 border-yellow-200
+            {% else %}bg-green-50 border-green-200{% endif %}">
+            <p class="text-xs font-semibold uppercase tracking-wide mb-3
+                {% if status_pico.em_pico %}text-red-500
+                {% elif status_pico.acessos >= metade %}text-yellow-600
+                {% else %}text-green-600{% endif %}">
+                Janela de {{ status_pico.janela_min }} minutos
+            </p>
+            <p class="text-3xl font-extrabold
+                {% if status_pico.em_pico %}text-red-600
+                {% elif status_pico.acessos >= metade %}text-yellow-700
+                {% else %}text-green-700{% endif %}">
+                {{ status_pico.acessos }}
+                <span class="text-base font-normal text-gray-400">/ {{ status_pico.limiar }}</span>
+            </p>
+            {% if status_pico.em_pico %}
+            <p class="text-xs text-red-500 font-semibold mt-1">PICO ATIVO</p>
+            {% elif status_pico.acessos >= metade %}
+            <p class="text-xs text-yellow-600 font-semibold mt-1">MOVIMENTO REGULAR</p>
+            {% else %}
+            <p class="text-xs text-green-600 font-semibold mt-1">MOVIMENTO BAIXO</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Alerta de pico manual -->
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-8">
+        <h2 class="text-base font-bold text-gray-900 mb-1">Enviar Alerta via WhatsApp e email</h2>
+        <p class="text-sm text-gray-400 mb-5">Selecione uma mensagem pronta ou escreva uma personalizada. Enviada para todos os alunos com telefone e emails cadastrado.</p>
+
+        <!-- Mensagens pré-prontas -->
+        <div class="mb-4">
+            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Mensagens rápidas</p>
+            <div class="flex flex-wrap gap-2">
+                <button type="button" onclick="selecionarMensagem(this)"
+                    data-msg="⚠️ O RU está com movimento intenso agora. Se possível, aguarde alguns minutos antes de vir para evitar filas."
+                    class="btn-alerta px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 hover:border-orange-400 hover:text-orange-600 hover:bg-orange-50 transition text-left">
+                    ⚠️ Movimento intenso agora
+                </button>
+                <button type="button" onclick="selecionarMensagem(this)"
+                    data-msg="🍽️ A fila do almoço está longa no momento. Sugerimos aguardar entre 13h e 14h para um atendimento mais rápido."
+                    class="btn-alerta px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 hover:border-orange-400 hover:text-orange-600 hover:bg-orange-50 transition text-left">
+                    🍽️ Fila longa no almoço
+                </button>
+                <button type="button" onclick="selecionarMensagem(this)"
+                    data-msg="🌙 A fila do jantar está longa no momento. Sugerimos aguardar após as 19h30 para um atendimento mais rápido."
+                    class="btn-alerta px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 hover:border-orange-400 hover:text-orange-600 hover:bg-orange-50 transition text-left">
+                    🌙 Fila longa no jantar
+                </button>
+                <button type="button" onclick="selecionarMensagem(this)"
+                    data-msg="✅ O movimento no RU normalizou! Venha com tranquilidade, o atendimento está fluindo bem."
+                    class="btn-alerta px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 hover:border-orange-400 hover:text-orange-600 hover:bg-orange-50 transition text-left">
+                    ✅ Movimento normalizado
+                </button>
+                <button type="button" onclick="selecionarMensagem(this)"
+                    data-msg="⏰ Atenção! O RU encerrará o serviço em 30 minutos. Venha agora para garantir sua refeição."
+                    class="btn-alerta px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 hover:border-orange-400 hover:text-orange-600 hover:bg-orange-50 transition text-left">
+                    ⏰ Encerrando em 30 min
+                </button>
+                <button type="button" onclick="selecionarMensagem(this)"
+                    data-msg="📋 Cardápio de hoje no RU foi atualizado. Acesse o Meu RU para conferir ou pergunte no WhatsApp."
+                    class="btn-alerta px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 hover:border-orange-400 hover:text-orange-600 hover:bg-orange-50 transition text-left">
+                    📋 Cardápio atualizado
+                </button>
+                <button type="button" onclick="selecionarMensagem(this)"
+                    data-msg="🔧 O RU estará em manutenção amanhã. O serviço será retomado conforme informação posterior. Pedimos desculpas pelo transtorno."
+                    class="btn-alerta px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 hover:border-orange-400 hover:text-orange-600 hover:bg-orange-50 transition text-left">
+                    🔧 Manutenção programada
+                </button>
+                <button type="button" onclick="selecionarMensagem(this)"
+                    data-msg="🎉 Lembrete: o RU está aberto hoje em horário especial. Almoço às: 11h–14h e Jantar às: 17h30–20h."
+                    class="btn-alerta px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 hover:border-orange-400 hover:text-orange-600 hover:bg-orange-50 transition text-left">
+                    🎉 Horário especial
+                </button>
+                <button type="button" onclick="selecionarMensagem(this)"
+                    data-msg="💳 Lembrete: verifique seu saldo de créditos no Meu RU antes de vir ao RU para evitar transtornos na fila."
+                    class="btn-alerta px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 hover:border-orange-400 hover:text-orange-600 hover:bg-orange-50 transition text-left">
+                    💳 Verifique seu saldo
+                </button>
+            </div>
+        </div>
+
+        <form method="POST" action="/admin/alerta-pico" id="form-alerta" novalidate>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token if csrf_token else '' }}">
+            <div class="mb-3">
+                <label class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 block">Mensagem</label>
+                <textarea name="mensagem" id="campo-mensagem" rows="3" required
+                    placeholder="Selecione uma mensagem acima ou escreva aqui..."
+                    class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 resize-none
+                           focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"></textarea>
+            </div>
+            <div class="flex gap-3 items-center">
+                <button type="button" onclick="limparMensagem()"
+                    class="px-4 py-2.5 rounded-xl text-sm font-medium border border-gray-200 text-gray-500 hover:bg-gray-50 transition">
+                    Limpar
+                </button>
+                <button type="submit"
+                    class="px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition flex items-center gap-2"
+                    style="background-color: #F47920;"
+                    onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+                    <span class="btn-text">📲 Enviar para todos</span>
+                    <span class="btn-loading hidden">Enviando...</span>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Histórico de picos -->
+    {% if picos %}
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-8">
+        <h2 class="text-base font-bold text-gray-900 mb-4">Histórico de Picos Detectados</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-100">
+                        <th class="text-left py-2 px-3 text-xs font-semibold text-gray-400 uppercase">Data/Hora</th>
+                        <th class="text-left py-2 px-3 text-xs font-semibold text-gray-400 uppercase">Acessos</th>
+                        <th class="text-left py-2 px-3 text-xs font-semibold text-gray-400 uppercase">Alerta Enviado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for pico in picos %}
+                <tr class="border-b border-gray-50 hover:bg-gray-50">
+                    <td class="py-2.5 px-3 text-gray-700">{{ (pico.registrado_em + BR).strftime('%d/%m/%Y %H:%M') }}</td>
+                    <td class="py-2.5 px-3 font-semibold text-red-600">{{ pico.acessos_na_janela }}</td>
+                    <td class="py-2.5 px-3">
+                        {% if pico.alerta_enviado %}
+                        <span class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">Sim</span>
+                        {% else %}
+                        <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium">Não</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function selecionarMensagem(btn) {
+    document.getElementById('campo-mensagem').value = btn.dataset.msg;
+
+    document.querySelectorAll('.btn-alerta').forEach(b => {
+        b.classList.remove('border-orange-400', 'text-orange-600', 'bg-orange-50');
+        b.classList.add('border-gray-200', 'text-gray-600');
+    });
+    btn.classList.remove('border-gray-200', 'text-gray-600');
+    btn.classList.add('border-orange-400', 'text-orange-600', 'bg-orange-50');
+}
+
+function limparMensagem() {
+    document.getElementById('campo-mensagem').value = '';
+    document.querySelectorAll('.btn-alerta').forEach(b => {
+        b.classList.remove('border-orange-400', 'text-orange-600', 'bg-orange-50');
+        b.classList.add('border-gray-200', 'text-gray-600');
+    });
+}
+</script>
+{% endblock %}

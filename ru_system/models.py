@@ -68,11 +68,11 @@ class Aluno(Base):
     ativo = Column(Boolean, default=True, nullable=False)
     criado_em = Column(DateTime, default=datetime.utcnow, nullable=False)
     cpf = Column(String(14), nullable=True)                # pedido no 1º pagamento por cartão
-    mp_customer_id = Column(String(64), nullable=True)      # cliente no Mercado Pago (cartões salvos)
 
     # Relacionamentos
     refeicoes = relationship("HistoricoRefeicao", back_populates="aluno", lazy="dynamic")
     recargas = relationship("HistoricoRecarga", back_populates="aluno", lazy="dynamic")
+    cartoes_salvos = relationship("CartaoSalvo", back_populates="aluno", lazy="dynamic")
 
 
 class Admin(Base):
@@ -134,6 +134,26 @@ class HistoricoRecarga(Base):
     admin = relationship("Admin", back_populates="recargas_feitas")
 
 
+class CartaoSalvo(Base):
+    """
+    Guarda só os dados de exibição do cartão (últimos 4 dígitos, bandeira,
+    nome, tipo) — nunca o número completo, validade ou CVV, mesmo sendo um
+    pagamento simulado. Pagar com um cartão salvo dispensa digitar tudo de
+    novo, igual qualquer carteira digital real.
+    """
+    __tablename__ = "cartoes_salvos"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    aluno_id = Column(Integer, ForeignKey("alunos.id"), nullable=False)
+    ultimos_digitos = Column(String(4), nullable=False)
+    bandeira = Column(String(20), nullable=False)
+    nome_impresso = Column(String(100), nullable=False)
+    tipo = Column(String(10), nullable=False)  # credito | debito
+    criado_em = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    aluno = relationship("Aluno", back_populates="cartoes_salvos")
+
+
 class TokenRecuperacao(Base):
     __tablename__ = "tokens_recuperacao"
 
@@ -142,6 +162,23 @@ class TokenRecuperacao(Base):
     token = Column(String(64), unique=True, nullable=False)
     expira_em = Column(DateTime, nullable=False)
     usado = Column(Boolean, default=False, nullable=False)
+
+
+class AcessoQRCode(Base):
+    """QR code dinâmico de curta duração para validar a entrada do aluno no RU."""
+    __tablename__ = "acessos_qrcode"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    aluno_id = Column(Integer, ForeignKey("alunos.id"), nullable=False, index=True)
+    token = Column(String(64), unique=True, nullable=False, index=True)
+    criado_em = Column(DateTime, default=datetime.utcnow, nullable=False)
+    expira_em = Column(DateTime, nullable=False)
+    usado = Column(Boolean, default=False, nullable=False)
+    usado_em = Column(DateTime, nullable=True)
+    validado_por = Column(Integer, ForeignKey("admins.id"), nullable=True)
+
+    aluno = relationship("Aluno")
+    admin = relationship("Admin")
 
 
 class SatisfacaoEnvio(Base):
@@ -153,6 +190,7 @@ class SatisfacaoEnvio(Base):
     refeicao_id = Column(Integer, ForeignKey("historico_refeicoes.id"), nullable=False, unique=True)
     enviado_em = Column(DateTime, default=datetime.utcnow, nullable=False)
     respondido = Column(Boolean, default=False, nullable=False)
+    etapa = Column(String(20), default="comida", nullable=False)  # comida -> servico -> sugestao
 
     aluno = relationship("Aluno")
     refeicao = relationship("HistoricoRefeicao")
@@ -160,17 +198,56 @@ class SatisfacaoEnvio(Base):
 
 
 class SatisfacaoResposta(Base):
-    """Armazena a nota (1-5) respondida pelo aluno via WhatsApp."""
+    """Armazena as notas (1-5) de comida/serviço e a sugestão respondidas via WhatsApp."""
     __tablename__ = "satisfacao_respostas"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     envio_id = Column(Integer, ForeignKey("satisfacao_envios.id"), nullable=False, unique=True)
     aluno_id = Column(Integer, ForeignKey("alunos.id"), nullable=False)
+    # Coluna legada (pré nota_comida/nota_servico) que o banco ainda exige
+    # como NOT NULL — mantém espelhada com nota_comida em toda inserção nova.
     nota = Column(Integer, nullable=False)
+    nota_comida = Column(Integer, nullable=False)
+    nota_servico = Column(Integer, nullable=True)
+    sugestao = Column(String(500), nullable=True)
     respondido_em = Column(DateTime, nullable=False)
 
     envio = relationship("SatisfacaoEnvio", back_populates="resposta")
     aluno = relationship("Aluno")
+
+
+class SugestaoAvulsa(Base):
+    """Sugestão enviada pelo aluno via comando 'sugestão' no bot, fora do fluxo
+    de pesquisa pós-refeição (texto fica nulo enquanto aguarda a resposta)."""
+    __tablename__ = "sugestoes_avulsas"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    aluno_id = Column(Integer, ForeignKey("alunos.id"), nullable=False)
+    texto = Column(String(500), nullable=True)
+    criado_em = Column(DateTime, default=datetime.utcnow, nullable=False)
+    respondido_em = Column(DateTime, nullable=True)
+
+    aluno = relationship("Aluno")
+
+
+class ConfirmacaoPresenca(Base):
+    """Pergunta enviada por WhatsApp 1h antes da abertura, perguntando se o aluno vai à refeição."""
+    __tablename__ = "confirmacoes_presenca"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    aluno_id = Column(Integer, ForeignKey("alunos.id"), nullable=False)
+    tipo = Column(SAEnum(TipoRefeicao), nullable=False)
+    data = Column(Date, nullable=False)
+    enviado_em = Column(DateTime, default=datetime.utcnow, nullable=False)
+    respondido = Column(Boolean, default=False, nullable=False)
+    vai = Column(Boolean, nullable=True)
+    respondido_em = Column(DateTime, nullable=True)
+
+    aluno = relationship("Aluno")
+
+    __table_args__ = (
+        UniqueConstraint("aluno_id", "tipo", "data", name="uq_confirmacao_presenca_aluno_tipo_data"),
+    )
 
 
 class DesperdícioAlimento(Base):
@@ -180,6 +257,7 @@ class DesperdícioAlimento(Base):
     id             = Column(Integer, primary_key=True, autoincrement=True)
     tipo           = Column(SAEnum(TipoRefeicao), nullable=False)
     nivel          = Column(SAEnum(NivelDesperdicio), nullable=False)
+    itens          = Column(String(300), nullable=True)
     observacao     = Column(String(300), nullable=True)
     registrado_em  = Column(DateTime, default=datetime.utcnow, nullable=False)
     registrado_por = Column(Integer, ForeignKey("admins.id"), nullable=True)
@@ -205,8 +283,12 @@ class Cardapio(Base):
     data            = Column(Date, nullable=False)
     tipo            = Column(SAEnum(TipoRefeicao), nullable=False)
     prato_principal = Column(String(200), nullable=True)
-    acompanhamentos = Column(String(500), nullable=True)
+    arroz           = Column(String(200), nullable=True)
+    feijao          = Column(String(200), nullable=True)
+    legumes         = Column(String(200), nullable=True)
+    salada          = Column(String(200), nullable=True)
     sobremesa       = Column(String(200), nullable=True)
+    vegetariano     = Column(String(200), nullable=True)
     observacao      = Column(String(300), nullable=True)
     criado_em       = Column(DateTime, default=datetime.utcnow, nullable=False)
 

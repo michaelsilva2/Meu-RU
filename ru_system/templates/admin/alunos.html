@@ -28,7 +28,7 @@
             </div>
             <div>
                 <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Status</label>
-                <select name="filtro"
+                <select name="filtro" data-custom
                     class="px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100">
                     <option value="todos" {% if filtro == 'todos' %}selected{% endif %}>Todos</option>
                     <option value="ativos" {% if filtro == 'ativos' %}selected{% endif %}>Ativos</option>
@@ -65,7 +65,8 @@
                 </thead>
                 <tbody class="divide-y divide-gray-50">
                     {% for aluno in alunos %}
-                    <tr class="hover:bg-orange-50/30 transition">
+                    <tr class="hover:bg-orange-50/30 transition cursor-pointer"
+                        onclick="window.location='/admin/alunos/{{ aluno.id }}'">
                         <td class="px-6 py-4 font-mono text-gray-600 text-xs">{{ aluno.matricula }}</td>
                         <td class="px-6 py-4 font-semibold text-gray-900">{{ aluno.nome }}</td>
                         <td class="px-6 py-4 text-gray-400 hidden md:table-cell text-xs">{{ aluno.email }}</td>

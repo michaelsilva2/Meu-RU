@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% block title %}Satisfação & Pico — MEU RU{% endblock %}
+{% import "_toast_macros.html" as toasts %}
+{% block title %}Satisfação — MEU RU{% endblock %}
 
 {% block body %}
 {% include "admin/_navbar.html" %}
@@ -7,18 +8,15 @@
 <main class="max-w-5xl mx-auto px-4 py-8">
 
     <div class="mb-6">
-        <h1 class="text-2xl font-extrabold text-gray-900 tracking-tight">Satisfação & Pico de Movimento</h1>
-        <p class="text-gray-400 text-sm mt-1">Pesquisas enviadas via WhatsApp e monitoramento de filas</p>
+        <h1 class="text-2xl font-extrabold text-gray-900 tracking-tight">Satisfação</h1>
+        <p class="text-gray-400 text-sm mt-1">Pesquisas enviadas via WhatsApp após as refeições</p>
     </div>
 
     {% if request.query_params.get('sucesso') %}
-    <div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium text-green-800 bg-green-50 border border-green-200">
-        {{ request.query_params.get('sucesso') | replace('+', ' ') }}
-    </div>
+        {{ toasts.toast_ok(request.query_params.get('sucesso') | replace('+', ' ')) }}
     {% endif %}
 
-    <!-- Cards de métricas -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Pesquisas Enviadas</p>
             <p class="text-3xl font-extrabold text-gray-900">{{ total_enviados }}</p>
@@ -29,140 +27,15 @@
         </div>
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Nota Média</p>
-            <p class="text-3xl font-extrabold text-green-600">{{ media if media else "—" }}</p>
-        </div>
-        <div class="rounded-2xl border shadow-sm p-5
-            {% if status_pico.em_pico %}bg-red-50 border-red-200{% else %}bg-white border-gray-100{% endif %}">
-            <p class="text-xs font-semibold uppercase tracking-wide mb-3
-                {% if status_pico.em_pico %}text-red-500{% else %}text-gray-400{% endif %}">
-                Agora — {{ status_pico.janela_min }} min
-            </p>
             <p class="text-3xl font-extrabold
-                {% if status_pico.em_pico %}text-red-600{% else %}text-gray-900{% endif %}">
-                {{ status_pico.acessos }}
-                <span class="text-base font-normal text-gray-400">/ {{ status_pico.limiar }}</span>
+                {% if not media %}text-gray-900
+                {% elif media > 6 %}text-green-600
+                {% elif media >= 5 %}text-yellow-600
+                {% else %}text-red-600{% endif %}">
+                {{ media if media else "—" }}
             </p>
-            {% if status_pico.em_pico %}
-            <p class="text-xs text-red-500 font-semibold mt-1">PICO ATIVO</p>
-            {% endif %}
         </div>
     </div>
-
-    <!-- Alerta de pico manual -->
-    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-8">
-        <h2 class="text-base font-bold text-gray-900 mb-1">Enviar Alerta via WhatsApp</h2>
-        <p class="text-sm text-gray-400 mb-5">Selecione uma mensagem pronta ou escreva uma personalizada. Enviada para todos os alunos com telefone cadastrado.</p>
-
-        <!-- Mensagens pré-prontas -->
-        <div class="mb-4">
-            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Mensagens rápidas</p>
-            <div class="flex flex-wrap gap-2">
-                <button type="button" onclick="selecionarMensagem(this)"
-                    data-msg="⚠️ O RU está com movimento intenso agora. Se possível, aguarde alguns minutos antes de vir para evitar filas."
-                    class="btn-alerta px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 hover:border-orange-400 hover:text-orange-600 hover:bg-orange-50 transition text-left">
-                    ⚠️ Movimento intenso agora
-                </button>
-                <button type="button" onclick="selecionarMensagem(this)"
-                    data-msg="🍽️ A fila do almoço está longa no momento. Sugerimos aguardar entre 13h e 14h para um atendimento mais rápido."
-                    class="btn-alerta px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 hover:border-orange-400 hover:text-orange-600 hover:bg-orange-50 transition text-left">
-                    🍽️ Fila longa no almoço
-                </button>
-                <button type="button" onclick="selecionarMensagem(this)"
-                    data-msg="🌙 A fila do jantar está longa no momento. Sugerimos aguardar após as 19h30 para um atendimento mais rápido."
-                    class="btn-alerta px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 hover:border-orange-400 hover:text-orange-600 hover:bg-orange-50 transition text-left">
-                    🌙 Fila longa no jantar
-                </button>
-                <button type="button" onclick="selecionarMensagem(this)"
-                    data-msg="✅ O movimento no RU normalizou! Venha com tranquilidade, o atendimento está fluindo bem."
-                    class="btn-alerta px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 hover:border-orange-400 hover:text-orange-600 hover:bg-orange-50 transition text-left">
-                    ✅ Movimento normalizado
-                </button>
-                <button type="button" onclick="selecionarMensagem(this)"
-                    data-msg="⏰ Atenção! O RU encerrará o serviço em 30 minutos. Venha agora para garantir sua refeição."
-                    class="btn-alerta px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 hover:border-orange-400 hover:text-orange-600 hover:bg-orange-50 transition text-left">
-                    ⏰ Encerrando em 30 min
-                </button>
-                <button type="button" onclick="selecionarMensagem(this)"
-                    data-msg="📋 Cardápio de hoje no RU foi atualizado. Acesse o app para conferir o menu do almoço e jantar."
-                    class="btn-alerta px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 hover:border-orange-400 hover:text-orange-600 hover:bg-orange-50 transition text-left">
-                    📋 Cardápio atualizado
-                </button>
-                <button type="button" onclick="selecionarMensagem(this)"
-                    data-msg="🔧 O RU estará em manutenção amanhã. O serviço será retomado conforme informação posterior. Pedimos desculpas pelo transtorno."
-                    class="btn-alerta px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 hover:border-orange-400 hover:text-orange-600 hover:bg-orange-50 transition text-left">
-                    🔧 Manutenção programada
-                </button>
-                <button type="button" onclick="selecionarMensagem(this)"
-                    data-msg="🎉 Lembrete: o RU está aberto hoje em horário especial. Almoço: 11h–14h | Jantar: 17h30–20h."
-                    class="btn-alerta px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 hover:border-orange-400 hover:text-orange-600 hover:bg-orange-50 transition text-left">
-                    🎉 Horário especial
-                </button>
-                <button type="button" onclick="selecionarMensagem(this)"
-                    data-msg="💳 Lembrete: verifique seu saldo de créditos no app antes de vir ao RU para evitar transtornos na fila."
-                    class="btn-alerta px-3 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 hover:border-orange-400 hover:text-orange-600 hover:bg-orange-50 transition text-left">
-                    💳 Verifique seu saldo
-                </button>
-            </div>
-        </div>
-
-        <form method="POST" action="/admin/alerta-pico" id="form-alerta">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token if csrf_token else '' }}">
-            <div class="mb-3">
-                <label class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 block">Mensagem</label>
-                <textarea name="mensagem" id="campo-mensagem" rows="3"
-                    placeholder="Selecione uma mensagem acima ou escreva aqui..."
-                    class="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 resize-none
-                           focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"></textarea>
-                <p class="text-xs text-gray-300 mt-1">Deixe em branco para usar a mensagem padrão de pico.</p>
-            </div>
-            <div class="flex gap-3 items-center">
-                <button type="button" onclick="limparMensagem()"
-                    class="px-4 py-2.5 rounded-xl text-sm font-medium border border-gray-200 text-gray-500 hover:bg-gray-50 transition">
-                    Limpar
-                </button>
-                <button type="submit" onclick="setLoading(this)"
-                    class="px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition flex items-center gap-2"
-                    style="background-color: #F47920;"
-                    onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
-                    <span class="btn-text">📲 Enviar para todos</span>
-                    <span class="btn-loading hidden">Enviando...</span>
-                </button>
-            </div>
-        </form>
-    </div>
-
-    <!-- Histórico de picos -->
-    {% if picos %}
-    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-8">
-        <h2 class="text-base font-bold text-gray-900 mb-4">Histórico de Picos Detectados</h2>
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead>
-                    <tr class="border-b border-gray-100">
-                        <th class="text-left py-2 px-3 text-xs font-semibold text-gray-400 uppercase">Data/Hora</th>
-                        <th class="text-left py-2 px-3 text-xs font-semibold text-gray-400 uppercase">Acessos</th>
-                        <th class="text-left py-2 px-3 text-xs font-semibold text-gray-400 uppercase">Alerta Enviado</th>
-                    </tr>
-                </thead>
-                <tbody>
-                {% for pico in picos %}
-                <tr class="border-b border-gray-50 hover:bg-gray-50">
-                    <td class="py-2.5 px-3 text-gray-700">{{ (pico.registrado_em + BR).strftime('%d/%m/%Y %H:%M') }}</td>
-                    <td class="py-2.5 px-3 font-semibold text-red-600">{{ pico.acessos_na_janela }}</td>
-                    <td class="py-2.5 px-3">
-                        {% if pico.alerta_enviado %}
-                        <span class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">Sim</span>
-                        {% else %}
-                        <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium">Não</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-    {% endif %}
 
     <!-- Respostas de satisfação -->
     <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
@@ -173,7 +46,9 @@
                 <thead>
                     <tr class="border-b border-gray-100">
                         <th class="text-left py-2 px-3 text-xs font-semibold text-gray-400 uppercase">Aluno</th>
-                        <th class="text-left py-2 px-3 text-xs font-semibold text-gray-400 uppercase">Nota</th>
+                        <th class="text-left py-2 px-3 text-xs font-semibold text-gray-400 uppercase">Comida</th>
+                        <th class="text-left py-2 px-3 text-xs font-semibold text-gray-400 uppercase">Serviço</th>
+                        <th class="text-left py-2 px-3 text-xs font-semibold text-gray-400 uppercase">Sugestão</th>
                         <th class="text-left py-2 px-3 text-xs font-semibold text-gray-400 uppercase">Respondido em</th>
                     </tr>
                 </thead>
@@ -186,12 +61,28 @@
                     </td>
                     <td class="py-2.5 px-3">
                         <span class="font-bold text-lg
-                            {% if resp.nota >= 4 %}text-green-600
-                            {% elif resp.nota == 3 %}text-yellow-600
+                            {% if resp.nota_comida >= 4 %}text-green-600
+                            {% elif resp.nota_comida == 3 %}text-yellow-600
                             {% else %}text-red-500{% endif %}">
-                            {{ resp.nota }}
+                            {{ resp.nota_comida }}
                         </span>
                         <span class="text-gray-400 text-xs">/5</span>
+                    </td>
+                    <td class="py-2.5 px-3">
+                        {% if resp.nota_servico %}
+                        <span class="font-bold text-lg
+                            {% if resp.nota_servico >= 4 %}text-green-600
+                            {% elif resp.nota_servico == 3 %}text-yellow-600
+                            {% else %}text-red-500{% endif %}">
+                            {{ resp.nota_servico }}
+                        </span>
+                        <span class="text-gray-400 text-xs">/5</span>
+                        {% else %}
+                        <span class="text-gray-300 text-xs">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="py-2.5 px-3 text-gray-600 text-xs max-w-xs truncate" title="{{ resp.sugestao or '' }}">
+                        {{ resp.sugestao or '—' }}
                     </td>
                     <td class="py-2.5 px-3 text-gray-500">{{ (resp.respondido_em + BR).strftime('%d/%m/%Y %H:%M') }}</td>
                 </tr>
@@ -205,27 +96,4 @@
     </div>
 
 </main>
-{% endblock %}
-
-{% block scripts %}
-<script>
-function selecionarMensagem(btn) {
-    document.getElementById('campo-mensagem').value = btn.dataset.msg;
-
-    document.querySelectorAll('.btn-alerta').forEach(b => {
-        b.classList.remove('border-orange-400', 'text-orange-600', 'bg-orange-50');
-        b.classList.add('border-gray-200', 'text-gray-600');
-    });
-    btn.classList.remove('border-gray-200', 'text-gray-600');
-    btn.classList.add('border-orange-400', 'text-orange-600', 'bg-orange-50');
-}
-
-function limparMensagem() {
-    document.getElementById('campo-mensagem').value = '';
-    document.querySelectorAll('.btn-alerta').forEach(b => {
-        b.classList.remove('border-orange-400', 'text-orange-600', 'bg-orange-50');
-        b.classList.add('border-gray-200', 'text-gray-600');
-    });
-}
-</script>
 {% endblock %}

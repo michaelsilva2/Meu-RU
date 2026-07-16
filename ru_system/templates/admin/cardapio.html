@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_toast_macros.html" as toasts %}
 {% block title %}Cardápio — MEU RU{% endblock %}
 
 {% block body %}
@@ -8,33 +9,15 @@
 
     <div class="mb-6">
         <h1 class="text-2xl font-extrabold text-gray-900 tracking-tight">Cardápio da Semana</h1>
-        <p class="text-gray-400 text-sm mt-1">Importe do story do Instagram ou cadastre manualmente. O cardápio vai nos emails automáticos de abertura.</p>
+        <p class="text-gray-400 text-sm mt-1">Importe do story do Instagram ou cadastre manualmente. O cardápio vai nos emails e contatos do WhatsApp automáticos de abertura.</p>
     </div>
 
     {% if sucesso %}
-    <div id="msg-ok" class="mb-4 px-4 py-3 rounded-xl text-sm font-medium text-green-800 bg-green-50 border border-green-200">
-        ✅ {{ sucesso | replace('+', ' ') }}
-    </div>
+        {{ toasts.toast_ok(sucesso | replace('+', ' ')) }}
     {% endif %}
     {% if erro %}
-    <div class="mb-4 px-4 py-3 rounded-xl text-sm font-medium text-red-700 bg-red-50 border border-red-200">
-        ⚠️ {{ erro | replace('+', ' ') }}
-    </div>
+        {{ toasts.toast_err(erro | replace('+', ' ')) }}
     {% endif %}
-
-    <!-- Info alertas automáticos -->
-    <div class="bg-orange-50 border border-orange-100 rounded-2xl px-5 py-4 mb-8 flex items-start gap-3">
-        <span class="text-xl mt-0.5">📧</span>
-        <div>
-            <p class="text-sm font-bold text-orange-700">Alertas automáticos ativos — seg a sex, feriados pulados</p>
-            <p class="text-sm text-orange-600 mt-0.5">
-                <strong>11h</strong> RU abre almoço (com cardápio) &nbsp;·&nbsp;
-                <strong>13h30</strong> fecha em 30 min &nbsp;·&nbsp;
-                <strong>19h</strong> RU abre jantar (com cardápio) &nbsp;·&nbsp;
-                <strong>20h30</strong> fecha em 30 min
-            </p>
-        </div>
-    </div>
 
     <!-- Cards por dia -->
     {% for data in datas %}
@@ -72,7 +55,6 @@
         <div class="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-50">
             {% for tipo_val, emoji, label, horario in [('almoco', '🌞', 'Almoço', '11h–14h'), ('jantar', '🌙', 'Jantar', '19h–21h')] %}
             {% set card = por_data.get(data, {}).get(tipo_val) %}
-            {% set fid = dia_str ~ '-' ~ tipo_val %}
             <div class="p-5">
                 <div class="flex items-center justify-between mb-3">
                     <div class="flex items-center gap-2">
@@ -89,69 +71,75 @@
                     {% endif %}
                 </div>
 
-                <!-- Botão importar do story -->
-                <div class="flex items-center gap-2 mb-4">
-                    <label class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:border-orange-400 hover:text-orange-600 hover:bg-orange-50 transition">
-                        📷 Ler do story
-                        <input type="file" accept="image/*" class="hidden"
-                               onchange="lerStory(this, '{{ fid }}')">
-                    </label>
-                    <span id="loading-{{ fid }}" class="hidden text-xs text-orange-500 font-medium animate-pulse">Lendo cardápio...</span>
-                    <span id="erro-{{ fid }}" class="hidden text-xs text-red-500"></span>
-                </div>
-
                 <!-- Cardápio atual (se existir) -->
                 {% if card %}
-                <div class="text-sm text-gray-600 space-y-1 mb-4 p-3 bg-gray-50 rounded-xl">
+                <ul class="text-sm text-gray-600 space-y-1.5 mb-4 p-3 bg-gray-50 rounded-xl">
+                    <li class="flex gap-2 text-gray-400 italic">
+                        <span>–</span>
+                        <span>ℹ️ <strong class="font-bold">
+                            {% if card.observacao and 'sujeito a altera' in card.observacao | lower %}{{ card.observacao | upper }}
+                            {% elif card.observacao %}CARDÁPIO SUJEITO A ALTERAÇÕES | {{ card.observacao | upper }}
+                            {% else %}CARDÁPIO SUJEITO A ALTERAÇÕES{% endif %}
+                        </strong></span>
+                    </li>
                     {% if card.prato_principal %}
-                    <p><span class="text-gray-400 text-xs">Prato</span><br><strong>{{ card.prato_principal }}</strong></p>
+                    <li class="flex gap-2"><span class="text-gray-400">–</span><span>🥩 <strong class="text-gray-700">{{ card.prato_principal | upper }}</strong></span></li>
                     {% endif %}
-                    {% if card.acompanhamentos %}
-                    <p class="text-xs text-gray-500">{{ card.acompanhamentos }}</p>
+                    {% if card.vegetariano %}
+                    <li class="flex gap-2"><span class="text-gray-400">–</span><span>🌱 {{ card.vegetariano | upper }}</span></li>
+                    {% endif %}
+                    {% if card.arroz %}
+                    <li class="flex gap-2"><span class="text-gray-400">–</span><span>🍚 {{ card.arroz | upper }}</span></li>
+                    {% endif %}
+                    {% if card.feijao %}
+                    <li class="flex gap-2"><span class="text-gray-400">–</span><span>🫘 {{ card.feijao | upper }}</span></li>
+                    {% endif %}
+                    {% if card.legumes %}
+                    <li class="flex gap-2"><span class="text-gray-400">–</span><span>🥦 {{ card.legumes | upper }}</span></li>
+                    {% endif %}
+                    {% if card.salada %}
+                    <li class="flex gap-2"><span class="text-gray-400">–</span><span>🥗 {{ card.salada | upper }}</span></li>
                     {% endif %}
                     {% if card.sobremesa %}
-                    <p class="text-xs text-gray-500">🍮 {{ card.sobremesa }}</p>
+                    <li class="flex gap-2"><span class="text-gray-400">–</span><span>🍮 {{ card.sobremesa | upper }}</span></li>
                     {% endif %}
-                    {% if card.observacao %}
-                    <p class="text-xs text-gray-400 italic">{{ card.observacao }}</p>
-                    {% endif %}
-                </div>
+                </ul>
                 {% endif %}
 
-                <!-- Formulário -->
-                <details id="details-{{ fid }}" {% if not card %}open{% endif %}>
-                    <summary class="cursor-pointer text-xs font-bold list-none flex items-center gap-1 mb-3"
-                             style="color: #F47920;">
-                        {% if card %}✏️ Editar cardápio{% else %}+ Cadastrar cardápio{% endif %}
-                    </summary>
-                    <form method="POST" action="/admin/cardapio" class="space-y-2">
+                <div class="flex flex-wrap gap-2">
+                    <button type="button"
+                        onclick='abrirModalCardapio({{ dia_str | tojson }}, {{ tipo_val | tojson }}, {{ label | tojson }}, {{ data.strftime("%d/%m") | tojson }}, {{ (card.prato_principal if card and card.prato_principal else "") | tojson }}, {{ (card.arroz if card and card.arroz else "") | tojson }}, {{ (card.feijao if card and card.feijao else "") | tojson }}, {{ (card.legumes if card and card.legumes else "") | tojson }}, {{ (card.salada if card and card.salada else "") | tojson }}, {{ (card.sobremesa if card and card.sobremesa else "") | tojson }}, {{ (card.vegetariano if card and card.vegetariano else "") | tojson }}, {{ (card.observacao if card and card.observacao else "") | tojson }})'
+                        class="inline-flex items-center gap-1.5 text-xs font-bold text-white px-3 py-1.5 rounded-lg shadow-sm transition-all duration-200"
+                        style="background: linear-gradient(135deg, #F47920, #E03D3D);"
+                        onmouseover="this.style.opacity='.88'; this.style.boxShadow='0 6px 14px rgba(244,121,32,0.35)';"
+                        onmouseout="this.style.opacity='1'; this.style.boxShadow='';">
+                        {% if card %}
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
+                        {% else %}
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                        {% endif %}
+                        {% if card %}Editar cardápio{% else %}Cadastrar cardápio{% endif %}
+                    </button>
+
+                    {% if card %}
+                    <form method="POST" action="/admin/cardapio/excluir" class="inline"
+                          onsubmit="return confirmarEnvio(this, 'Excluir o cardápio deste dia?');">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <input type="hidden" name="data" value="{{ dia_str }}">
                         <input type="hidden" name="tipo" value="{{ tipo_val }}">
-                        <input type="text" id="prato-{{ fid }}" name="prato_principal"
-                            value="{{ card.prato_principal if card and card.prato_principal else '' }}"
-                            placeholder="Prato principal (proteína)"
-                            class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-100">
-                        <input type="text" id="acomp-{{ fid }}" name="acompanhamentos"
-                            value="{{ card.acompanhamentos if card and card.acompanhamentos else '' }}"
-                            placeholder="Acompanhamentos"
-                            class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-100">
-                        <input type="text" id="sobremesa-{{ fid }}" name="sobremesa"
-                            value="{{ card.sobremesa if card and card.sobremesa else '' }}"
-                            placeholder="Sobremesa"
-                            class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-100">
-                        <input type="text" id="obs-{{ fid }}" name="observacao"
-                            value="{{ card.observacao if card and card.observacao else '' }}"
-                            placeholder="Observação / opção vegetariana"
-                            class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-100">
                         <button type="submit"
-                            class="w-full py-2 rounded-lg text-sm font-bold text-white transition"
-                            style="background-color: #F47920;"
-                            onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
-                            Salvar
+                            class="inline-flex items-center gap-1.5 text-xs font-bold text-white px-3 py-1.5 rounded-lg shadow-sm transition-all duration-200"
+                            style="background: linear-gradient(135deg, #F87171, #DC2626);"
+                            onmouseover="this.style.opacity='.88'; this.style.boxShadow='0 6px 14px rgba(220,38,38,0.35)';"
+                            onmouseout="this.style.opacity='1'; this.style.boxShadow='';">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/>
+                            </svg>
+                            Excluir
                         </button>
                     </form>
-                </details>
+                    {% endif %}
+                </div>
             </div>
             {% endfor %}
         </div>
@@ -160,6 +148,81 @@
     {% endfor %}
 
 </main>
+
+<!-- Modal Cadastrar/Editar Cardápio -->
+<div id="modal-cardapio" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+        <h2 id="cardapio-modal-titulo" class="text-lg font-bold text-gray-800 mb-1">Cadastrar cardápio</h2>
+        <p id="cardapio-modal-subtitulo" class="text-gray-400 text-sm mb-5"></p>
+
+        <!-- Ler do story -->
+        <div class="flex items-center gap-2 mb-2">
+            <label class="cursor-pointer inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white shadow-sm transition-all duration-200"
+                style="background: linear-gradient(135deg, #F47920, #E03D3D);"
+                onmouseover="this.style.opacity='.88'; this.style.boxShadow='0 6px 14px rgba(244,121,32,0.35)';"
+                onmouseout="this.style.opacity='1'; this.style.boxShadow='';">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.174C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.174 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.822 1.316z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z"/>
+                </svg>
+                Ler do story
+                <input type="file" accept="image/*" class="hidden" onchange="lerStory(this)">
+            </label>
+            <span id="cardapio-loading" class="hidden text-xs text-orange-500 font-medium animate-pulse">Lendo cardápio...</span>
+        </div>
+        <p id="cardapio-erro-story" class="hidden text-xs text-red-500 mb-3"></p>
+
+        <form method="POST" action="/admin/cardapio" id="form-cardapio" class="mt-3">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="data" id="cardapio-data">
+            <input type="hidden" name="tipo" id="cardapio-tipo">
+            <div class="space-y-2 mb-5">
+                <input type="text" id="cardapio-prato" name="prato_principal" placeholder="Prato principal (proteína)"
+                    oninput="this.value = this.value.toUpperCase()"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-100">
+                <input type="text" id="cardapio-arroz" name="arroz" placeholder="Arroz"
+                    oninput="this.value = this.value.toUpperCase()"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-100">
+                <input type="text" id="cardapio-feijao" name="feijao" placeholder="Feijão"
+                    oninput="this.value = this.value.toUpperCase()"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-100">
+                <input type="text" id="cardapio-legumes" name="legumes" placeholder="Legumes"
+                    oninput="this.value = this.value.toUpperCase()"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-100">
+                <input type="text" id="cardapio-salada" name="salada" placeholder="Salada"
+                    oninput="this.value = this.value.toUpperCase()"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-100">
+                <input type="text" id="cardapio-sobremesa" name="sobremesa" placeholder="Sobremesa"
+                    oninput="this.value = this.value.toUpperCase()"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-100">
+                <input type="text" id="cardapio-vegetariano" name="vegetariano" placeholder="Opção vegetariana"
+                    oninput="this.value = this.value.toUpperCase()"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-100">
+                <input type="text" id="cardapio-obs" name="observacao" placeholder="Observação"
+                    oninput="this.value = this.value.toUpperCase()"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-100">
+            </div>
+            <div class="flex gap-3">
+                <button type="button" onclick="fecharModal('modal-cardapio')"
+                    class="flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-sm font-medium">
+                    Cancelar
+                </button>
+                <button type="submit" onclick="setLoading(this)"
+                    class="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-bold text-white shadow-sm transition-all duration-200"
+                    style="background: linear-gradient(135deg, #F47920, #E03D3D);"
+                    onmouseover="this.style.opacity='.88'; this.style.boxShadow='0 6px 14px rgba(244,121,32,0.35)';"
+                    onmouseout="this.style.opacity='1'; this.style.boxShadow='';">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/>
+                    </svg>
+                    <span class="btn-text">Salvar</span>
+                    <span class="btn-loading hidden">Salvando...</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -169,17 +232,33 @@ const csrfToken = () => {
     return m ? decodeURIComponent(m[1]) : '';
 };
 
-async function lerStory(input, fid) {
+function abrirModalCardapio(dataStr, tipo, labelRefeicao, dataFmt, prato, arroz, feijao, legumes, salada, sobremesa, vegetariano, obs) {
+    const existente = !!(prato || arroz || feijao || legumes || salada || sobremesa || vegetariano || obs);
+    document.getElementById('cardapio-modal-titulo').textContent = existente ? 'Editar cardápio' : 'Cadastrar cardápio';
+    document.getElementById('cardapio-modal-subtitulo').textContent = `${labelRefeicao} — ${dataFmt}`;
+    document.getElementById('cardapio-data').value = dataStr;
+    document.getElementById('cardapio-tipo').value = tipo;
+    document.getElementById('cardapio-prato').value = (prato || '').toUpperCase();
+    document.getElementById('cardapio-arroz').value = (arroz || '').toUpperCase();
+    document.getElementById('cardapio-feijao').value = (feijao || '').toUpperCase();
+    document.getElementById('cardapio-legumes').value = (legumes || '').toUpperCase();
+    document.getElementById('cardapio-salada').value = (salada || '').toUpperCase();
+    document.getElementById('cardapio-sobremesa').value = (sobremesa || '').toUpperCase();
+    document.getElementById('cardapio-vegetariano').value = (vegetariano || '').toUpperCase();
+    document.getElementById('cardapio-obs').value = (obs || '').toUpperCase();
+    document.getElementById('cardapio-erro-story').classList.add('hidden');
+    abrirModal('modal-cardapio');
+}
+
+async function lerStory(input) {
     if (!input.files[0]) return;
 
-    const loading = document.getElementById('loading-' + fid);
-    const erroEl  = document.getElementById('erro-' + fid);
-    const details = document.getElementById('details-' + fid);
-
+    const loading = document.getElementById('cardapio-loading');
+    const erroEl  = document.getElementById('cardapio-erro-story');
     loading.classList.remove('hidden');
     erroEl.classList.add('hidden');
 
-    const tipo = fid.endsWith('-almoco') ? 'almoco' : 'jantar';
+    const tipo = document.getElementById('cardapio-tipo').value || 'almoco';
     const fd = new FormData();
     fd.append('imagem', input.files[0]);
     fd.append('tipo', tipo);
@@ -195,12 +274,14 @@ async function lerStory(input, fid) {
             return;
         }
 
-        document.getElementById('prato-'    + fid).value = dados.prato_principal  || '';
-        document.getElementById('acomp-'    + fid).value = dados.acompanhamentos  || '';
-        document.getElementById('sobremesa-'+ fid).value = dados.sobremesa        || '';
-        document.getElementById('obs-'      + fid).value = dados.observacao       || '';
-
-        details.open = true;
+        document.getElementById('cardapio-prato').value       = (dados.prato_principal || '').toUpperCase();
+        document.getElementById('cardapio-arroz').value       = (dados.arroz           || '').toUpperCase();
+        document.getElementById('cardapio-feijao').value      = (dados.feijao          || '').toUpperCase();
+        document.getElementById('cardapio-legumes').value     = (dados.legumes         || '').toUpperCase();
+        document.getElementById('cardapio-salada').value      = (dados.salada          || '').toUpperCase();
+        document.getElementById('cardapio-sobremesa').value   = (dados.sobremesa       || '').toUpperCase();
+        document.getElementById('cardapio-vegetariano').value = (dados.vegetariano     || '').toUpperCase();
+        document.getElementById('cardapio-obs').value         = (dados.observacao      || '').toUpperCase();
     } catch {
         erroEl.textContent = 'Erro de conexão. Tente novamente.';
         erroEl.classList.remove('hidden');
@@ -209,8 +290,5 @@ async function lerStory(input, fid) {
         input.value = '';
     }
 }
-
-const msgOk = document.getElementById('msg-ok');
-if (msgOk) setTimeout(() => msgOk.remove(), 4000);
 </script>
 {% endblock %}
