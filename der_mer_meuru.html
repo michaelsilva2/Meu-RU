@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meu RU — DER e Modelo Relacional</title>
+<style>
+  :root {
+    --bg: #F7F3F2;
+    --bg-alt: #EFE8E6;
+    --card: #FFFFFF;
+    --card-border: #E3D9D6;
+    --text: #241C1A;
+    --text-muted: #6E615D;
+    --text-faint: #A6968F;
+    --accent-1: #F47920;
+    --accent-2: #E03D3D;
+    --fk: #4E6E8C;
+    --fk-bg: #E9EFF4;
+    --uk: #4C7A5B;
+    --uk-bg: #E9F2EC;
+    --rule: #DCD0CD;
+    --mono: ui-monospace, "Cascadia Code", "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+    --sans: -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --shadow: 0 1px 2px rgba(60, 30, 20, 0.06), 0 8px 24px -12px rgba(60, 30, 20, 0.18);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1B1413; --bg-alt: #241A18; --card: #251B19; --card-border: #3A2926;
+      --text: #F2E9E6; --text-muted: #B9A9A4; --text-faint: #8A7975;
+      --accent-1: #FF9142; --accent-2: #FF5C5C;
+      --fk: #8FB4D9; --fk-bg: #26333E; --uk: #86C09B; --uk-bg: #223A2A;
+      --rule: #3D2C29;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans); line-height: 1.5; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 48px 28px 96px; }
+
+  header.hero { display: flex; flex-direction: column; gap: 10px; padding-bottom: 28px; margin-bottom: 36px; border-bottom: 1px solid var(--rule); }
+  .eyebrow { font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-2); font-weight: 600; }
+  h1 { font-size: clamp(28px, 4vw, 40px); margin: 0; font-weight: 800; text-wrap: balance; letter-spacing: -0.01em; }
+  .subtitle { color: var(--text-muted); font-size: 16px; max-width: 62ch; }
+  .meta-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+  .meta-chip { font-family: var(--mono); font-size: 12px; color: var(--text-muted); background: var(--bg-alt); border: 1px solid var(--card-border); padding: 4px 10px; border-radius: 999px; }
+
+  section { margin-bottom: 52px; }
+  .section-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 18px; }
+  .section-num { font-family: var(--mono); font-size: 13px; color: var(--accent-2); border: 1px solid var(--accent-2); border-radius: 6px; padding: 1px 7px; opacity: 0.85; }
+  h2 { font-size: 22px; margin: 0; font-weight: 700; text-wrap: balance; }
+  .section-desc { color: var(--text-muted); font-size: 14.5px; max-width: 68ch; margin: 6px 0 20px; }
+
+  .blueprint { position: relative; background: var(--card); border: 1px solid var(--card-border); border-radius: 14px; box-shadow: var(--shadow); padding: 28px; overflow-x: auto; }
+  .corner-tick { position: absolute; width: 14px; height: 14px; border-color: var(--accent-1); opacity: 0.6; }
+  .corner-tick.tl { top: 10px; left: 10px; border-top: 2px solid; border-left: 2px solid; }
+  .corner-tick.br { bottom: 10px; right: 10px; border-bottom: 2px solid; border-right: 2px solid; }
+  .mermaid { min-width: 900px; }
+
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 16px; font-family: var(--mono); font-size: 12.5px; color: var(--text-muted); }
+  .legend span.dot { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+
+  .domain-group { margin-bottom: 34px; }
+  .domain-label { font-family: var(--mono); font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent-1); font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+  .domain-label::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
+
+  .rel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+  .rel-card { background: var(--card); border: 1px solid var(--card-border); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+  .rel-card-head { padding: 12px 16px; border-bottom: 1px solid var(--card-border); background: linear-gradient(135deg, rgba(244,121,32,0.10), transparent); }
+  .rel-name { font-family: var(--mono); font-weight: 700; font-size: 14.5px; letter-spacing: 0.01em; }
+  .rel-note { font-size: 12px; color: var(--text-faint); margin-top: 2px; }
+  .rel-cols { padding: 6px 0; }
+  .col-row { display: grid; grid-template-columns: 14px 1fr auto; align-items: center; gap: 10px; padding: 5px 16px; font-family: var(--mono); font-size: 12.8px; border-bottom: 1px solid var(--bg-alt); }
+  .col-row:last-child { border-bottom: none; }
+  .req-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text); opacity: 0.55; }
+  .req-dot.opt { background: transparent; border: 1px solid var(--text-faint); opacity: 1; }
+  .col-name { color: var(--text); }
+  .col-type { color: var(--text-faint); font-size: 11.5px; margin-left: 8px; }
+  .badges { display: flex; gap: 5px; justify-self: end; }
+  .badge { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; letter-spacing: 0.03em; }
+  .badge.pk { background: rgba(244,121,32,0.18); color: var(--accent-2); }
+  .badge.fk { background: var(--fk-bg); color: var(--fk); }
+  .badge.uk { background: var(--uk-bg); color: var(--uk); }
+
+  footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--rule); font-size: 12.5px; color: var(--text-faint); font-family: var(--mono); }
+
+  @media (max-width: 640px) { .wrap { padding: 32px 16px 64px; } .rel-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <span class="eyebrow">Meu RU · Capítulo 5.2 — Modelagem do Banco de Dados</span>
+    <h1>DER e Modelo Relacional (MER)</h1>
+    <p class="subtitle">Esquema completo extraído diretamente de <code>models.py</code>: 14 tabelas cobrindo autenticação, créditos, acesso por QR code, satisfação/feedback e operação do restaurante.</p>
+    <div class="meta-row">
+      <span class="meta-chip">14 tabelas</span>
+      <span class="meta-chip">SQLAlchemy ORM</span>
+      <span class="meta-chip">SQLite → PostgreSQL</span>
+    </div>
+  </header>
+
+  <section>
+    <div class="section-head"><span class="section-num">01</span><h2>DER — Diagrama Entidade-Relacionamento</h2></div>
+    <p class="section-desc">Entidades, atributos e cardinalidades das relações. Uma linha cheia (<code>||</code>) indica obrigatoriedade; um "pé de galinha" (<code>o{</code>) indica a possibilidade de múltiplas ocorrências.</p>
+    <div class="blueprint">
+      <span class="corner-tick tl"></span><span class="corner-tick br"></span>
+<pre class="mermaid">
+erDiagram
+    ALUNOS ||--o{ HISTORICO_REFEICOES : "registra"
+    ALUNOS ||--o{ HISTORICO_RECARGAS : "recarrega"
+    ADMINS ||--o{ HISTORICO_RECARGAS : "aprova"
+    ADMINS ||--o{ HISTORICO_REFEICOES : "valida"
+    ALUNOS ||--o{ CARTOES_SALVOS : "salva"
+    ADMINS ||--o{ ADMINS : "cria"
+    ALUNOS ||--o{ ACESSOS_QRCODE : "gera"
+    ADMINS ||--o{ ACESSOS_QRCODE : "valida"
+    ALUNOS ||--o{ SATISFACAO_ENVIOS : "recebe"
+    HISTORICO_REFEICOES ||--|| SATISFACAO_ENVIOS : "origina"
+    SATISFACAO_ENVIOS ||--|| SATISFACAO_RESPOSTAS : "gera"
+    ALUNOS ||--o{ SATISFACAO_RESPOSTAS : "responde"
+    ALUNOS ||--o{ SUGESTOES_AVULSAS : "envia"
+    ALUNOS ||--o{ CONFIRMACOES_PRESENCA : "confirma"
+    ADMINS ||--o{ DESPERDICIOS_ALIMENTO : "registra"
+
+    ALUNOS {
+        int id PK
+        string matricula UK
+        string nome
+        string email UK
+        string senha_hash
+        decimal creditos
+        string telefone
+        enum categoria
+        bool primeiro_acesso
+        bool ativo
+        datetime criado_em
+        string cpf
+    }
+    ADMINS {
+        int id PK
+        string nome
+        string email UK
+        string senha_hash
+        enum role
+        bool ativo
+        datetime criado_em
+        int criado_por FK
+    }
+    HISTORICO_REFEICOES {
+        int id PK
+        int aluno_id FK
+        enum tipo
+        decimal creditos_utilizados
+        datetime data_hora
+        int registrado_por FK
+    }
+    HISTORICO_RECARGAS {
+        int id PK
+        int aluno_id FK
+        int admin_id FK
+        enum tipo
+        decimal valor
+        string observacao
+        datetime data_hora
+        enum status
+        string metodo_pagamento
+        string gateway_payment_id
+        string external_reference
+        string pix_copia_cola
+        text pix_qr_base64
+        datetime expira_em
+        datetime atualizado_em
+    }
+    CARTOES_SALVOS {
+        int id PK
+        int aluno_id FK
+        string ultimos_digitos
+        string bandeira
+        string nome_impresso
+        string tipo
+        datetime criado_em
+    }
+    ACESSOS_QRCODE {
+        int id PK
+        int aluno_id FK
+        string token UK
+        datetime criado_em
+        datetime expira_em
+        bool usado
+        datetime usado_em
+        int validado_por FK
+    }
+    SATISFACAO_ENVIOS {
+        int id PK
+        int aluno_id FK
+        int refeicao_id FK
+        datetime enviado_em
+        bool respondido
+        string etapa
+    }
+    SATISFACAO_RESPOSTAS {
+        int id PK
+        int envio_id FK
+        int aluno_id FK
+        int nota
+        int nota_comida
+        int nota_servico
+        string sugestao
+        datetime respondido_em
+    }
+    SUGESTOES_AVULSAS {
+        int id PK
+        int aluno_id FK
+        string texto
+        datetime criado_em
+        datetime respondido_em
+    }
+    CONFIRMACOES_PRESENCA {
+        int id PK
+        int aluno_id FK
+        enum tipo
+        date data
+        datetime enviado_em
+        bool respondido
+        bool vai
+        datetime respondido_em
+    }
+    DESPERDICIOS_ALIMENTO {
+        int id PK
+        enum tipo
+        enum nivel
+        string itens
+        string observacao
+        datetime registrado_em
+        int registrado_por FK
+    }
+    TOKENS_RECUPERACAO {
+        int id PK
+        string email
+        string token UK
+        datetime expira_em
+        bool usado
+    }
+    PICOS_MOVIMENTO {
+        int id PK
+        int acessos_na_janela
+        datetime registrado_em
+        bool alerta_enviado
+    }
+    CARDAPIOS {
+        int id PK
+        date data
+        enum tipo
+        string prato_principal
+        string arroz
+        string feijao
+        string legumes
+        string salada
+        string sobremesa
+        string vegetariano
+        string observacao
+        datetime criado_em
+    }
+</pre>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head"><span class="section-num">02</span><h2>MER — Modelo Relacional</h2></div>
+    <p class="section-desc">Cada relação com suas colunas, tipos e chaves. Ponto cheio = coluna obrigatória (<code>NOT NULL</code>); ponto vazio = opcional.</p>
+    <div class="legend">
+      <span class="dot"><span class="swatch" style="background:var(--text);opacity:.55"></span>obrigatório</span>
+      <span class="dot"><span class="swatch" style="border:1px solid var(--text-faint);background:transparent"></span>opcional</span>
+      <span class="dot"><span class="badge pk">PK</span>chave primária</span>
+      <span class="dot"><span class="badge fk">FK</span>chave estrangeira</span>
+      <span class="dot"><span class="badge uk">UK</span>única</span>
+    </div>
+
+    <div style="height:26px"></div>
+
+    <div class="domain-group">
+      <div class="domain-label">Usuários &amp; autenticação</div>
+      <div class="rel-grid" id="grupo-usuarios"></div>
+    </div>
+    <div class="domain-group">
+      <div class="domain-label">Créditos &amp; pagamentos</div>
+      <div class="rel-grid" id="grupo-creditos"></div>
+    </div>
+    <div class="domain-group">
+      <div class="domain-label">Acesso ao RU</div>
+      <div class="rel-grid" id="grupo-acesso"></div>
+    </div>
+    <div class="domain-group">
+      <div class="domain-label">Satisfação &amp; feedback</div>
+      <div class="rel-grid" id="grupo-satisfacao"></div>
+    </div>
+    <div class="domain-group">
+      <div class="domain-label">Cardápio &amp; operação</div>
+      <div class="rel-grid" id="grupo-operacao"></div>
+    </div>
+  </section>
+
+  <footer>models.py — SQLAlchemy ORM · gerado a partir do esquema em produção</footer>
+</div>
+
+<script>
+function reqDot(req) { return '<span class="req-dot' + (req ? '' : ' opt') + '"></span>'; }
+function badges(list) {
+  return '<div class="badges">' + list.map(function(b) {
+    return '<span class="badge ' + b.toLowerCase() + '">' + b + '</span>';
+  }).join('') + '</div>';
+}
+function col(name, type, required, keys) {
+  return '<div class="col-row">' + reqDot(required) +
+    '<span><span class="col-name">' + name + '</span><span class="col-type">' + type + '</span></span>' +
+    (keys && keys.length ? badges(keys) : '<span></span>') + '</div>';
+}
+function card(name, note, cols) {
+  return '<div class="rel-card"><div class="rel-card-head"><div class="rel-name">' + name + '</div>' +
+    (note ? '<div class="rel-note">' + note + '</div>' : '') +
+    '</div><div class="rel-cols">' + cols.join('') + '</div></div>';
+}
+
+var grupos = {
+  "grupo-usuarios": [
+    card("ALUNOS", "", [
+      col("id","INTEGER",true,["PK"]),
+      col("matricula","VARCHAR(20)",true,["UK"]),
+      col("nome","VARCHAR(100)",true,[]),
+      col("email","VARCHAR(150)",true,["UK"]),
+      col("senha_hash","VARCHAR(255)",true,[]),
+      col("creditos","NUMERIC(10,2)",true,[]),
+      col("telefone","VARCHAR(20)",false,[]),
+      col("categoria","ENUM",true,[]),
+      col("primeiro_acesso","BOOLEAN",true,[]),
+      col("ativo","BOOLEAN",true,[]),
+      col("criado_em","DATETIME",true,[]),
+      col("cpf","VARCHAR(14)",false,[]),
+    ]),
+    card("ADMINS", "criado_por referencia a própria tabela", [
+      col("id","INTEGER",true,["PK"]),
+      col("nome","VARCHAR(100)",true,[]),
+      col("email","VARCHAR(150)",true,["UK"]),
+      col("senha_hash","VARCHAR(255)",true,[]),
+      col("role","ENUM",true,[]),
+      col("ativo","BOOLEAN",true,[]),
+      col("criado_em","DATETIME",true,[]),
+      col("criado_por","INTEGER",false,["FK"]),
+    ]),
+    card("TOKENS_RECUPERACAO", "reset de senha por e-mail", [
+      col("id","INTEGER",true,["PK"]),
+      col("email","VARCHAR(150)",true,[]),
+      col("token","VARCHAR(64)",true,["UK"]),
+      col("expira_em","DATETIME",true,[]),
+      col("usado","BOOLEAN",true,[]),
+    ]),
+  ],
+  "grupo-creditos": [
+    card("HISTORICO_RECARGAS", "recarga/remoção/ajuste + Pix simulado", [
+      col("id","INTEGER",true,["PK"]),
+      col("aluno_id","INTEGER",true,["FK"]),
+      col("admin_id","INTEGER",false,["FK"]),
+      col("tipo","ENUM",true,[]),
+      col("valor","NUMERIC(10,2)",true,[]),
+      col("observacao","VARCHAR(500)",false,[]),
+      col("data_hora","DATETIME",true,[]),
+      col("status","ENUM",true,[]),
+      col("metodo_pagamento","VARCHAR(20)",false,[]),
+      col("gateway_payment_id","VARCHAR(64)",false,[]),
+      col("external_reference","VARCHAR(36)",false,[]),
+      col("pix_copia_cola","VARCHAR(1000)",false,[]),
+      col("pix_qr_base64","TEXT",false,[]),
+      col("expira_em","DATETIME",false,[]),
+      col("atualizado_em","DATETIME",false,[]),
+    ]),
+    card("CARTOES_SALVOS", "só dados de exibição — nunca número/CVV completo", [
+      col("id","INTEGER",true,["PK"]),
+      col("aluno_id","INTEGER",true,["FK"]),
+      col("ultimos_digitos","VARCHAR(4)",true,[]),
+      col("bandeira","VARCHAR(20)",true,[]),
+      col("nome_impresso","VARCHAR(100)",true,[]),
+      col("tipo","VARCHAR(10)",true,[]),
+      col("criado_em","DATETIME",true,[]),
+    ]),
+  ],
+  "grupo-acesso": [
+    card("HISTORICO_REFEICOES", "registrado_por nulo = autoatendimento", [
+      col("id","INTEGER",true,["PK"]),
+      col("aluno_id","INTEGER",true,["FK"]),
+      col("tipo","ENUM",true,[]),
+      col("creditos_utilizados","NUMERIC(10,2)",true,[]),
+      col("data_hora","DATETIME",true,[]),
+      col("registrado_por","INTEGER",false,["FK"]),
+    ]),
+    card("ACESSOS_QRCODE", "token de uso único e curta duração", [
+      col("id","INTEGER",true,["PK"]),
+      col("aluno_id","INTEGER",true,["FK"]),
+      col("token","VARCHAR(64)",true,["UK"]),
+      col("criado_em","DATETIME",true,[]),
+      col("expira_em","DATETIME",true,[]),
+      col("usado","BOOLEAN",true,[]),
+      col("usado_em","DATETIME",false,[]),
+      col("validado_por","INTEGER",false,["FK"]),
+    ]),
+    card("PICOS_MOVIMENTO", "eventos de pico de entrada no RU", [
+      col("id","INTEGER",true,["PK"]),
+      col("acessos_na_janela","INTEGER",true,[]),
+      col("registrado_em","DATETIME",true,[]),
+      col("alerta_enviado","BOOLEAN",true,[]),
+    ]),
+  ],
+  "grupo-satisfacao": [
+    card("SATISFACAO_ENVIOS", "1 envio por refeição (refeicao_id é único)", [
+      col("id","INTEGER",true,["PK"]),
+      col("aluno_id","INTEGER",true,["FK"]),
+      col("refeicao_id","INTEGER",true,["FK","UK"]),
+      col("enviado_em","DATETIME",true,[]),
+      col("respondido","BOOLEAN",true,[]),
+      col("etapa","VARCHAR(20)",true,[]),
+    ]),
+    card("SATISFACAO_RESPOSTAS", "nota = coluna legada espelhada de nota_comida", [
+      col("id","INTEGER",true,["PK"]),
+      col("envio_id","INTEGER",true,["FK","UK"]),
+      col("aluno_id","INTEGER",true,["FK"]),
+      col("nota","INTEGER",true,[]),
+      col("nota_comida","INTEGER",true,[]),
+      col("nota_servico","INTEGER",false,[]),
+      col("sugestao","VARCHAR(500)",false,[]),
+      col("respondido_em","DATETIME",true,[]),
+    ]),
+    card("SUGESTOES_AVULSAS", "texto nulo enquanto aguarda resposta do aluno", [
+      col("id","INTEGER",true,["PK"]),
+      col("aluno_id","INTEGER",true,["FK"]),
+      col("texto","VARCHAR(500)",false,[]),
+      col("criado_em","DATETIME",true,[]),
+      col("respondido_em","DATETIME",false,[]),
+    ]),
+    card("CONFIRMACOES_PRESENCA", "único por (aluno_id, tipo, data)", [
+      col("id","INTEGER",true,["PK"]),
+      col("aluno_id","INTEGER",true,["FK"]),
+      col("tipo","ENUM",true,[]),
+      col("data","DATE",true,[]),
+      col("enviado_em","DATETIME",true,[]),
+      col("respondido","BOOLEAN",true,[]),
+      col("vai","BOOLEAN",false,[]),
+      col("respondido_em","DATETIME",false,[]),
+    ]),
+  ],
+  "grupo-operacao": [
+    card("CARDAPIOS", "único por (data, tipo)", [
+      col("id","INTEGER",true,["PK"]),
+      col("data","DATE",true,[]),
+      col("tipo","ENUM",true,[]),
+      col("prato_principal","VARCHAR(200)",false,[]),
+      col("arroz","VARCHAR(200)",false,[]),
+      col("feijao","VARCHAR(200)",false,[]),
+      col("legumes","VARCHAR(200)",false,[]),
+      col("salada","VARCHAR(200)",false,[]),
+      col("sobremesa","VARCHAR(200)",false,[]),
+      col("vegetariano","VARCHAR(200)",false,[]),
+      col("observacao","VARCHAR(300)",false,[]),
+      col("criado_em","DATETIME",true,[]),
+    ]),
+    card("DESPERDICIOS_ALIMENTO", "itens (tags) separado de observacao (texto livre)", [
+      col("id","INTEGER",true,["PK"]),
+      col("tipo","ENUM",true,[]),
+      col("nivel","ENUM",true,[]),
+      col("itens","VARCHAR(300)",false,[]),
+      col("observacao","VARCHAR(300)",false,[]),
+      col("registrado_em","DATETIME",true,[]),
+      col("registrado_por","INTEGER",false,["FK"]),
+    ]),
+  ],
+};
+
+Object.keys(grupos).forEach(function(id) {
+  document.getElementById(id).innerHTML = grupos[id].join('');
+});
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: "neutral" });
+</script>
+</body>
+</html>

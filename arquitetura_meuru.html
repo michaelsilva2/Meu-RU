@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meu RU — Arquitetura Geral</title>
+<style>
+  :root {
+    --bg: #F7F3F2;
+    --bg-alt: #EFE8E6;
+    --card: #FFFFFF;
+    --card-border: #E3D9D6;
+    --text: #241C1A;
+    --text-muted: #6E615D;
+    --text-faint: #A6968F;
+    --accent-1: #F47920;
+    --accent-2: #E03D3D;
+    --client: #4E6E8C;
+    --client-bg: #E9EFF4;
+    --server: #C4501E;
+    --server-bg: #FCEBE0;
+    --data: #4C7A5B;
+    --data-bg: #E9F2EC;
+    --ext: #8A6D3B;
+    --ext-bg: #F5EEE0;
+    --rule: #DCD0CD;
+    --mono: ui-monospace, "Cascadia Code", "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+    --sans: -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --shadow: 0 1px 2px rgba(60, 30, 20, 0.06), 0 8px 24px -12px rgba(60, 30, 20, 0.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1B1413; --bg-alt: #241A18; --card: #251B19; --card-border: #3A2926;
+      --text: #F2E9E6; --text-muted: #B9A9A4; --text-faint: #8A7975;
+      --accent-1: #FF9142; --accent-2: #FF5C5C;
+      --client: #8FB4D9; --client-bg: #26333E;
+      --server: #FF9D6E; --server-bg: #3A281E;
+      --data: #86C09B; --data-bg: #223A2A;
+      --ext: #D8BE8A; --ext-bg: #362D1E;
+      --rule: #3D2C29;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -12px rgba(0,0,0,0.5);
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans); line-height: 1.5; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 48px 28px 96px; }
+
+  header.hero { display: flex; flex-direction: column; gap: 10px; padding-bottom: 28px; margin-bottom: 36px; border-bottom: 1px solid var(--rule); }
+  .eyebrow { font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-2); font-weight: 600; }
+  h1 { font-size: clamp(28px, 4vw, 40px); margin: 0; font-weight: 800; text-wrap: balance; letter-spacing: -0.01em; }
+  .subtitle { color: var(--text-muted); font-size: 16px; max-width: 66ch; }
+
+  .blueprint { position: relative; background: var(--card); border: 1px solid var(--card-border); border-radius: 14px; box-shadow: var(--shadow); padding: 32px; overflow-x: auto; }
+  .corner-tick { position: absolute; width: 14px; height: 14px; border-color: var(--accent-1); opacity: 0.6; }
+  .corner-tick.tl { top: 10px; left: 10px; border-top: 2px solid; border-left: 2px solid; }
+  .corner-tick.br { bottom: 10px; right: 10px; border-bottom: 2px solid; border-right: 2px solid; }
+
+  .diagram { display: flex; flex-direction: column; gap: 22px; min-width: 760px; }
+  .row { display: grid; gap: 16px; }
+  .row.clients { grid-template-columns: repeat(3, 1fr); }
+  .row.server { grid-template-columns: 1fr; }
+  .row.mid { grid-template-columns: repeat(3, 1fr); }
+  .row.bottom { grid-template-columns: 1fr 1fr; }
+
+  .box { border-radius: 10px; padding: 14px 16px; border: 1.5px solid; font-size: 13.5px; }
+  .box .label { font-family: var(--mono); font-weight: 700; letter-spacing: 0.01em; }
+  .box .sub { font-size: 11.5px; color: var(--text-faint); margin-top: 3px; font-family: var(--mono); }
+
+  .box.client { background: var(--client-bg); border-color: var(--client); color: var(--client); }
+  .box.server-wrap { background: var(--server-bg); border-color: var(--server); padding: 20px; }
+  .box.server-title { font-family: var(--mono); font-weight: 700; color: var(--server); font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .box.server-title::after { content: ""; flex: 1; height: 1px; background: var(--server); opacity: 0.25; }
+  .box.router { background: var(--card); border-color: var(--server); color: var(--server); }
+  .box.data { background: var(--data-bg); border-color: var(--data); color: var(--data); }
+  .box.ext { background: var(--ext-bg); border-color: var(--ext); color: var(--ext); }
+
+  .router-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; }
+  .core-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+
+  .arrow-row { display: flex; justify-content: center; align-items: center; gap: 8px; color: var(--text-faint); font-family: var(--mono); font-size: 11px; }
+  .arrow-row .line { flex: 1; height: 1px; background: var(--rule); position: relative; }
+  .arrow-down { text-align: center; color: var(--text-faint); font-size: 18px; line-height: 1; }
+
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 20px; font-family: var(--mono); font-size: 12px; color: var(--text-muted); }
+  .legend span.dot { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; border: 1.5px solid; }
+
+  .note { margin-top: 22px; font-size: 13.5px; color: var(--text-muted); max-width: 78ch; }
+  footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--rule); font-size: 12.5px; color: var(--text-faint); font-family: var(--mono); }
+
+  @media (max-width: 900px) {
+    .row.clients, .row.mid, .row.bottom, .router-grid, .core-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <span class="eyebrow">Meu RU · Capítulo 5.1 — Arquitetura Geral</span>
+    <h1>Diagrama da Arquitetura</h1>
+    <p class="subtitle">Arquitetura cliente-servidor monolítica: um único processo FastAPI/Uvicorn concentra rotas HTTP, regras de negócio, motor do chatbot e agendador, integrado a serviços externos de apoio.</p>
+  </header>
+
+  <div class="blueprint">
+    <span class="corner-tick tl"></span><span class="corner-tick br"></span>
+    <div class="diagram">
+
+      <div class="row clients">
+        <div class="box client">
+          <div class="label">Navegador do Aluno</div>
+          <div class="sub">HTTPS</div>
+        </div>
+        <div class="box client">
+          <div class="label">Navegador do Admin</div>
+          <div class="sub">HTTPS</div>
+        </div>
+        <div class="box client">
+          <div class="label">WhatsApp do Aluno</div>
+          <div class="sub">mensagem</div>
+        </div>
+      </div>
+
+      <div class="arrow-down">↓</div>
+
+      <div class="row server">
+        <div class="box server-wrap">
+          <div class="server-title">Servidor de Aplicação — FastAPI / Uvicorn</div>
+          <div class="router-grid">
+            <div class="box router"><div class="label">auth_routes</div></div>
+            <div class="box router"><div class="label">aluno</div></div>
+            <div class="box router"><div class="label">admin</div></div>
+            <div class="box router"><div class="label">webhook</div></div>
+          </div>
+          <div class="core-grid">
+            <div class="box router">
+              <div class="label">Regras de Negócio</div>
+              <div class="sub">refeicoes · payments · qrcode_acesso</div>
+            </div>
+            <div class="box router">
+              <div class="label">Motor do Chatbot</div>
+              <div class="sub">whatsapp_bot.py</div>
+            </div>
+            <div class="box router">
+              <div class="label">Agendador</div>
+              <div class="sub">APScheduler</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow-down">↓</div>
+
+      <div class="row mid">
+        <div class="box data" style="grid-column: 1 / span 1;">
+          <div class="label">Banco de Dados</div>
+          <div class="sub">SQLite (dev) / PostgreSQL (prod)</div>
+        </div>
+        <div class="box ext">
+          <div class="label">Twilio API</div>
+          <div class="sub">envio/recebimento WhatsApp</div>
+        </div>
+        <div class="box ext">
+          <div class="label">Google Gemini</div>
+          <div class="sub">visão computacional (cardápio)</div>
+        </div>
+      </div>
+
+      <div class="row bottom">
+        <div class="box ext"><div class="label">Servidor SMTP</div><div class="sub">e-mail transacional e de alertas</div></div>
+        <div class="box ext" style="opacity:0"></div>
+      </div>
+
+    </div>
+
+    <div class="legend">
+      <span class="dot"><span class="swatch" style="background:var(--client-bg);border-color:var(--client)"></span>Clientes</span>
+      <span class="dot"><span class="swatch" style="background:var(--server-bg);border-color:var(--server)"></span>Servidor de aplicação</span>
+      <span class="dot"><span class="swatch" style="background:var(--data-bg);border-color:var(--data)"></span>Camada de dados</span>
+      <span class="dot"><span class="swatch" style="background:var(--ext-bg);border-color:var(--ext)"></span>Serviços externos</span>
+    </div>
+
+    <p class="note">O aluno e o administrador acessam o sistema por HTTPS através do navegador; o WhatsApp chega por um webhook da Twilio, tratado pelo mesmo processo. Todos os routers e o motor do chatbot compartilham a mesma camada de regras de negócio e o mesmo banco de dados. O agendador dispara alertas automáticos por e-mail (SMTP) e WhatsApp (Twilio); o cadastro de cardápio pode chamar o Google Gemini para leitura de imagem.</p>
+  </div>
+
+  <footer>Figura — Diagrama da arquitetura geral do Meu RU. Fonte: elaborado pelo autor (2026).</footer>
+</div>
+</body>
+</html>
