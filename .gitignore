@@ -41,5 +41,8 @@ logs/
 Thumbs.db
 desktop.ini
 
+# ngrok (binario extraido do ngrok.zip, gerado localmente)
+ngrok.exe
+
 # Claude Code
 .claude/settings.local.json
