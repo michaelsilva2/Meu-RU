@@ -13,13 +13,7 @@ services:
         sync: false
       - key: DATABASE_URL
         sync: false
-      - key: EMAIL_HOST
-        sync: false
-      - key: EMAIL_PORT
-        sync: false
-      - key: EMAIL_USER
-        sync: false
-      - key: EMAIL_PASS
+      - key: RESEND_API_KEY
         sync: false
       - key: EMAIL_FROM
         sync: false

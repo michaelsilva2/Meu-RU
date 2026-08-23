@@ -1,15 +1,38 @@
 """
-Serviço de envio de emails via SMTP.
-Se EMAIL_HOST não estiver configurado, imprime o link no terminal (modo desenvolvimento).
-"""
-import smtplib
-import logging
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+Serviço de envio de emails via API HTTP da Resend.
+Se RESEND_API_KEY não estiver configurada, imprime o link no terminal (modo desenvolvimento).
 
-from config import EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, EMAIL_FROM, BASE_URL
+Usa a API HTTP (não SMTP): conexões SMTP diretas costumam ser bloqueadas ou mal
+roteadas em PaaS gratuitos (ex.: Render), travando o worker por minutos até dar
+timeout. A chamada HTTP abaixo usa timeout curto e nunca bloqueia o site.
+"""
+import logging
+
+import requests
+
+from config import RESEND_API_KEY, EMAIL_FROM, BASE_URL
 
 logger = logging.getLogger(__name__)
+
+RESEND_URL = "https://api.resend.com/emails"
+_TIMEOUT_SEGUNDOS = 8
+
+
+def _enviar_via_resend(destinatarios: list[str], assunto: str, html: str) -> bool:
+    try:
+        resp = requests.post(
+            RESEND_URL,
+            headers={"Authorization": f"Bearer {RESEND_API_KEY}"},
+            json={"from": EMAIL_FROM, "to": destinatarios, "subject": assunto, "html": html},
+            timeout=_TIMEOUT_SEGUNDOS,
+        )
+        if resp.status_code >= 400:
+            logger.error("Resend recusou o envio (%s): %s", resp.status_code, resp.text)
+            return False
+        return True
+    except requests.RequestException as exc:
+        logger.error("Erro de rede ao chamar a API da Resend: %s", exc)
+        return False
 
 
 def _template_recuperacao(link: str, nome: str = "") -> str:
@@ -159,42 +182,22 @@ def enviar_email_alerta(email: str, assunto: str, mensagem: str) -> bool:
 
 
 def enviar_emails_alerta_lote(emails: list[str], assunto: str, mensagem: str) -> int:
-    """Envia o mesmo alerta para vários destinatários usando uma única conexão SMTP."""
+    """Envia o mesmo alerta para vários destinatários."""
     if not emails:
         return 0
-    if not EMAIL_HOST:
+    if not RESEND_API_KEY:
         logger.info("[DEV] Email alerta simulado para %d destinatários: %s", len(emails), mensagem)
         return len(emails)
     html = _template_alerta(mensagem)
-    enviados = 0
-    try:
-        with smtplib.SMTP(EMAIL_HOST, EMAIL_PORT) as servidor:
-            servidor.ehlo()
-            servidor.starttls()
-            if EMAIL_USER and EMAIL_PASS:
-                servidor.login(EMAIL_USER, EMAIL_PASS)
-            for email in emails:
-                try:
-                    msg = MIMEMultipart("alternative")
-                    msg["Subject"] = assunto
-                    msg["From"] = EMAIL_FROM
-                    msg["To"] = email
-                    msg.attach(MIMEText(html, "html", "utf-8"))
-                    servidor.sendmail(EMAIL_FROM, [email], msg.as_string())
-                    enviados += 1
-                except Exception as exc:
-                    logger.error("Falha ao enviar para %s: %s", email, exc)
-    except Exception as exc:
-        logger.error("Erro na conexão SMTP ao enviar alertas: %s", exc)
-    return enviados
+    return sum(1 for email in emails if _enviar_via_resend([email], assunto, html))
 
 
 def enviar_email_boas_vindas(email: str, nome: str, matricula: str) -> bool:
     """
     Envia email de confirmação de cadastro ao novo aluno.
-    Em modo dev (sem EMAIL_HOST), imprime no terminal.
+    Em modo dev (sem RESEND_API_KEY), imprime no terminal.
     """
-    if not EMAIL_HOST:
+    if not RESEND_API_KEY:
         print("\n" + "="*60)
         print("📧 [MODO DEV] Email de boas-vindas")
         print(f"   Para: {email}  |  Nome: {nome}  |  Matrícula: {matricula}")
@@ -202,39 +205,23 @@ def enviar_email_boas_vindas(email: str, nome: str, matricula: str) -> bool:
         logger.info("[DEV] Email de boas-vindas simulado para %s", email)
         return True
 
-    try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = "Bem-vindo ao RU — Cadastro confirmado!"
-        msg["From"] = EMAIL_FROM
-        msg["To"] = email
-
-        msg.attach(MIMEText(_template_boas_vindas(nome, matricula), "html", "utf-8"))
-
-        with smtplib.SMTP(EMAIL_HOST, EMAIL_PORT) as servidor:
-            servidor.ehlo()
-            servidor.starttls()
-            if EMAIL_USER and EMAIL_PASS:
-                servidor.login(EMAIL_USER, EMAIL_PASS)
-            servidor.sendmail(EMAIL_FROM, [email], msg.as_string())
-
+    sucesso = _enviar_via_resend(
+        [email], "Bem-vindo ao RU — Cadastro confirmado!", _template_boas_vindas(nome, matricula)
+    )
+    if sucesso:
         logger.info("Email de boas-vindas enviado para %s", email)
-        return True
-
-    except Exception as exc:
-        logger.error("Erro ao enviar email de boas-vindas para %s: %s", email, exc)
-        return False
+    return sucesso
 
 
 def enviar_email_recuperacao(email: str, token: str, nome: str = "") -> bool:
     """
     Envia email de recuperação de senha.
     Retorna True se enviado com sucesso.
-    Em modo dev (sem EMAIL_HOST), imprime o link no terminal.
+    Em modo dev (sem RESEND_API_KEY), imprime o link no terminal.
     """
     link = f"{BASE_URL}/recuperar-senha/{token}"
 
-    # ── Modo desenvolvimento: sem servidor SMTP configurado ──
-    if not EMAIL_HOST:
+    if not RESEND_API_KEY:
         print("\n" + "="*60)
         print("📧 [MODO DEV] Email de recuperação de senha")
         print(f"   Para: {email}")
@@ -243,26 +230,7 @@ def enviar_email_recuperacao(email: str, token: str, nome: str = "") -> bool:
         logger.info(f"[DEV] Link de recuperação para {email}: {link}")
         return True
 
-    # ── Modo produção: envio real via SMTP ───────────────────
-    try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = "Recuperação de Senha — RU"
-        msg["From"] = EMAIL_FROM
-        msg["To"] = email
-
-        html_content = _template_recuperacao(link, nome)
-        msg.attach(MIMEText(html_content, "html", "utf-8"))
-
-        with smtplib.SMTP(EMAIL_HOST, EMAIL_PORT) as servidor:
-            servidor.ehlo()
-            servidor.starttls()
-            if EMAIL_USER and EMAIL_PASS:
-                servidor.login(EMAIL_USER, EMAIL_PASS)
-            servidor.sendmail(EMAIL_FROM, [email], msg.as_string())
-
+    sucesso = _enviar_via_resend([email], "Recuperação de Senha — RU", _template_recuperacao(link, nome))
+    if sucesso:
         logger.info(f"Email de recuperação enviado para {email}")
-        return True
-
-    except Exception as e:
-        logger.error(f"Erro ao enviar email para {email}: {e}")
-        return False
+    return sucesso

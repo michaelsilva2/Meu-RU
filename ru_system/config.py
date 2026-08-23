@@ -23,12 +23,10 @@ BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 # Para migrar para PostgreSQL: DATABASE_URL=postgresql://user:pass@host:5432/ru_db
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./ru.db")
 
-# Email (SMTP)
-EMAIL_HOST = os.getenv("EMAIL_HOST", "")
-EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
-EMAIL_USER = os.getenv("EMAIL_USER", "")
-EMAIL_PASS = os.getenv("EMAIL_PASS", "")
-EMAIL_FROM = os.getenv("EMAIL_FROM", "noreply@ru.edu.br")
+# Email — Resend (API HTTP, não usa SMTP: SMTP direto costuma ser bloqueado/roteado
+# incorretamente em PaaS gratuitos como o Render, travando o worker até dar timeout)
+RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
+EMAIL_FROM = os.getenv("EMAIL_FROM", "MeuRU <onboarding@resend.dev>")
 
 # Chave para sessões / CSRF (itsdangerous)
 SESSION_SECRET_KEY = os.getenv("SECRET_KEY", SECRET_KEY)
