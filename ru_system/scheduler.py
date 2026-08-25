@@ -17,12 +17,17 @@ from zoneinfo import ZoneInfo
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
+from sqlalchemy.exc import IntegrityError
 
 from config import FERIADOS_NACIONAIS
 from database import SessionLocal
-from models import Aluno, Cardapio, TipoRefeicao, HistoricoRecarga, StatusRecarga, AcessoQRCode
-from email_service import enviar_emails_alerta_lote
+from models import (
+    Aluno, Cardapio, TipoRefeicao, HistoricoRecarga, StatusRecarga, AcessoQRCode,
+    HistoricoRefeicao, SatisfacaoEnvio,
+)
+from email_service import enviar_emails_alerta_lote, enviar_email_avaliacao
 from whatsapp_bot import enviar_confirmacoes_presenca, enviar_alerta_whatsapp
+from auth import criar_token_jwt
 import payments
 
 logger = logging.getLogger(__name__)
@@ -218,6 +223,64 @@ async def limpar_qrcodes_antigos():
         db.close()
 
 
+# ── Lembrete de avaliação por e-mail (30 min após a refeição) ─────────────────
+# Roda a cada 5 min e varre uma janela de 30-40 min atrás (em vez de um sleep
+# de 30 min por refeição) para sobreviver a reinícios do processo — um sleep
+# em memória seria perdido se o worker reiniciar antes de completar.
+
+async def enviar_lembretes_avaliacao_email():
+    db = SessionLocal()
+    try:
+        agora = datetime.utcnow()
+        refeicoes = (
+            db.query(HistoricoRefeicao)
+            .join(Aluno, Aluno.id == HistoricoRefeicao.aluno_id)
+            .outerjoin(SatisfacaoEnvio, SatisfacaoEnvio.refeicao_id == HistoricoRefeicao.id)
+            .filter(
+                HistoricoRefeicao.data_hora <= agora - timedelta(minutes=30),
+                HistoricoRefeicao.data_hora >= agora - timedelta(minutes=40),
+                SatisfacaoEnvio.id.is_(None),
+                Aluno.ativo == True,
+                Aluno.email.isnot(None),
+            )
+            .all()
+        )
+        loop = asyncio.get_event_loop()
+        for refeicao in refeicoes:
+            aluno = refeicao.aluno
+            envio = SatisfacaoEnvio(
+                aluno_id=aluno.id,
+                refeicao_id=refeicao.id,
+                enviado_em=agora,
+                etapa="email",
+            )
+            db.add(envio)
+            try:
+                db.flush()
+            except IntegrityError:
+                # Corrida com o bot do WhatsApp (mesma refeição, aluno tem telefone
+                # e email): quem chegou primeiro no unique(refeicao_id) leva a pesquisa.
+                db.rollback()
+                continue
+
+            token = criar_token_jwt({"sub": str(envio.id), "tipo": "avaliacao_email"}, horas=48)
+            tipo_texto = "almoço" if refeicao.tipo == TipoRefeicao.almoco else "jantar"
+
+            enviado = await loop.run_in_executor(
+                None, enviar_email_avaliacao, aluno.email, aluno.nome, tipo_texto, token
+            )
+            if enviado:
+                db.commit()
+            else:
+                db.rollback()
+                logger.warning(
+                    "Falha ao enviar lembrete de avaliação para aluno_id=%s refeicao_id=%s — tenta de novo no próximo ciclo",
+                    aluno.id, refeicao.id,
+                )
+    finally:
+        db.close()
+
+
 # ── Criação do scheduler ──────────────────────────────────────────────────────
 
 def criar_scheduler() -> AsyncIOScheduler:
@@ -266,5 +329,10 @@ def criar_scheduler() -> AsyncIOScheduler:
         limpar_qrcodes_antigos,
         IntervalTrigger(minutes=30),
         id="limpar_qrcodes_antigos",
+    )
+    scheduler.add_job(
+        enviar_lembretes_avaliacao_email,
+        IntervalTrigger(minutes=5),
+        id="enviar_lembretes_avaliacao_email",
     )
     return scheduler

@@ -10,7 +10,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models import Aluno, Admin, TokenRecuperacao
+from models import Aluno, Admin, TokenRecuperacao, SatisfacaoEnvio, SatisfacaoResposta
 from auth import (
     hash_senha, verificar_senha,
     criar_token_aluno, criar_token_admin,
@@ -379,6 +379,80 @@ async def recuperar_senha_token_post(
     db.commit()
 
     return RedirectResponse(url="/login?msg=senha_redefinida", status_code=303)
+
+
+# ─── AVALIAÇÃO POR E-MAIL (1 clique, sem login) ───────────────────────────
+# Link com token JWT próprio (tipo "avaliacao_email") mandado pelo lembrete
+# 30 min após a refeição — ver scheduler.enviar_lembretes_avaliacao_email.
+
+def _envio_do_token(token: str, db: Session) -> SatisfacaoEnvio | None:
+    try:
+        payload = decodificar_token(token)
+    except HTTPException:
+        return None
+    if payload.get("tipo") != "avaliacao_email":
+        return None
+    return db.query(SatisfacaoEnvio).filter(SatisfacaoEnvio.id == int(payload["sub"])).first()
+
+
+@router.get("/avaliacao-email/{token}", response_class=HTMLResponse)
+async def avaliacao_email_get(request: Request, token: str, nota: int | None = None, db: Session = Depends(get_db)):
+    envio = _envio_do_token(token, db)
+    if not envio:
+        return templates.TemplateResponse(request, "avaliacao_email.html", {"status": "invalido"})
+
+    if envio.respondido:
+        return templates.TemplateResponse(request, "avaliacao_email.html", {"status": "ja_respondido", "token": token})
+
+    if nota is None or nota not in range(1, 6):
+        return templates.TemplateResponse(request, "avaliacao_email.html", {"status": "invalido"})
+
+    agora = datetime.utcnow()
+    db.add(SatisfacaoResposta(
+        envio_id=envio.id,
+        aluno_id=envio.aluno_id,
+        nota=nota,
+        nota_comida=nota,
+        nota_servico=nota,
+        respondido_em=agora,
+    ))
+    envio.respondido = True
+    db.commit()
+
+    return templates.TemplateResponse(request, "avaliacao_email.html", {"status": "sucesso", "nota": nota, "token": token})
+
+
+@router.get("/avaliacao-email/{token}/comentario", response_class=HTMLResponse)
+async def avaliacao_email_comentario_get(request: Request, token: str, db: Session = Depends(get_db)):
+    envio = _envio_do_token(token, db)
+    if not envio or not envio.respondido:
+        return templates.TemplateResponse(request, "avaliacao_email_comentario.html", {"status": "invalido"})
+
+    csrf = gerar_csrf_token()
+    resposta = templates.TemplateResponse(request, "avaliacao_email_comentario.html", {
+        "status": "form", "token": token, "csrf_token": csrf,
+    })
+    resposta.set_cookie("csrf_token", csrf, httponly=False, samesite="lax")
+    return resposta
+
+
+@router.post("/avaliacao-email/{token}/comentario")
+async def avaliacao_email_comentario_post(
+    request: Request,
+    token: str,
+    comentario: str = Form(""),
+    csrf_token: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    verificar_csrf(request, {"csrf_token": csrf_token})
+
+    envio = _envio_do_token(token, db)
+    if envio and envio.resposta:
+        envio.resposta.sugestao = comentario.strip()[:500] or None
+        db.commit()
+        return templates.TemplateResponse(request, "avaliacao_email_comentario.html", {"status": "obrigado"})
+
+    return templates.TemplateResponse(request, "avaliacao_email_comentario.html", {"status": "invalido"})
 
 
 # ─── CADASTRO DE NOVO ALUNO ───────────────────────────────────────────────

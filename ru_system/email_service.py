@@ -141,6 +141,51 @@ def _template_boas_vindas(nome: str, matricula: str) -> str:
     """
 
 
+def _template_avaliacao(nome: str, tipo_refeicao: str, token: str) -> str:
+    primeiro_nome = nome.split()[0] if nome else "Aluno"
+    estrelas = "".join(
+        f"""<a href="{BASE_URL}/avaliacao-email/{token}?nota={n}"
+              style="display: inline-block; width: 44px; height: 44px; line-height: 44px;
+                     margin: 0 4px; border-radius: 50%; background: #FFF7F0;
+                     color: #F47920; font-size: 20px; text-decoration: none; font-weight: bold;">
+              {n}★</a>"""
+        for n in range(1, 6)
+    )
+    return f"""
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head><meta charset="UTF-8"></head>
+    <body style="font-family: Arial, sans-serif; background: #1A1A1A; padding: 32px 16px;">
+        <div style="max-width: 520px; margin: 0 auto;">
+
+            <div style="text-align: center; margin-bottom: 28px;">
+                <p style="font-size: 28px; font-weight: 900; color: #ffffff; letter-spacing: 6px; margin: 0;">MEU RU</p>
+                <p style="color: #F4792088; font-size: 13px; margin: 4px 0 0;">Restaurante Universitário · UFCAT</p>
+            </div>
+
+            <div style="background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.4);">
+                <div style="height: 4px; background: linear-gradient(90deg, #F47920, #E03D3D);"></div>
+                <div style="padding: 36px 32px; text-align: center;">
+                    <h2 style="color: #111; font-size: 20px; margin: 0 0 8px;">Como foi o {tipo_refeicao} de hoje?</h2>
+                    <p style="color: #555; font-size: 14px; margin: 0 0 28px;">
+                        Olá, {primeiro_nome}! Sua opinião ajuda a melhorar o RU. Clique numa nota de 1 a 5:
+                    </p>
+                    <div style="margin-bottom: 8px;">{estrelas}</div>
+                    <p style="color: #bbb; font-size: 12px; margin: 24px 0 0;">
+                        Leva 1 clique — não precisa fazer login.
+                    </p>
+                </div>
+            </div>
+
+            <p style="text-align: center; color: #F4792044; font-size: 11px; margin-top: 24px;">
+                Sistema de Créditos · Restaurante Universitário UFCAT
+            </p>
+        </div>
+    </body>
+    </html>
+    """
+
+
 def _template_alerta(mensagem: str) -> str:
     linhas = mensagem.replace("\n", "<br>")
     return f"""
@@ -233,4 +278,26 @@ def enviar_email_recuperacao(email: str, token: str, nome: str = "") -> bool:
     sucesso = _enviar_via_resend([email], "Recuperação de Senha — RU", _template_recuperacao(link, nome))
     if sucesso:
         logger.info(f"Email de recuperação enviado para {email}")
+    return sucesso
+
+
+def enviar_email_avaliacao(email: str, nome: str, tipo_refeicao: str, token: str) -> bool:
+    """
+    Envia o lembrete de avaliação (5 estrelas clicáveis, sem precisar logar).
+    Em modo dev (sem RESEND_API_KEY), imprime o link no terminal.
+    """
+    if not RESEND_API_KEY:
+        print("\n" + "="*60)
+        print("📧 [MODO DEV] Email de avaliação de refeição")
+        print(f"   Para: {email}")
+        print(f"   Link (nota 5 de exemplo): {BASE_URL}/avaliacao-email/{token}?nota=5")
+        print("="*60 + "\n")
+        logger.info("[DEV] Link de avaliação para %s", email)
+        return True
+
+    sucesso = _enviar_via_resend(
+        [email], f"Como foi o {tipo_refeicao} de hoje? — RU", _template_avaliacao(nome, tipo_refeicao, token)
+    )
+    if sucesso:
+        logger.info("Email de avaliação enviado para %s", email)
     return sucesso
