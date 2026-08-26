@@ -23,10 +23,14 @@ BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 # Para migrar para PostgreSQL: DATABASE_URL=postgresql://user:pass@host:5432/ru_db
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./ru.db")
 
-# Email — Resend (API HTTP, não usa SMTP: SMTP direto costuma ser bloqueado/roteado
-# incorretamente em PaaS gratuitos como o Render, travando o worker até dar timeout)
-RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
-EMAIL_FROM = os.getenv("EMAIL_FROM", "MeuRU <onboarding@resend.dev>")
+# Email — Brevo (API HTTP, não usa SMTP: SMTP direto costuma ser bloqueado/roteado
+# incorretamente em PaaS gratuitos como o Render, travando o worker até dar timeout).
+# Sem domínio verificado, provedores tipo Resend só permitem mandar para o próprio
+# dono da conta — a Brevo permite verificar um único remetente (sem domínio) e
+# mandar para qualquer destinatário, essencial pra alunos reais.
+BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
+EMAIL_FROM_NOME = os.getenv("EMAIL_FROM_NOME", "MeuRU")
+EMAIL_FROM = os.getenv("EMAIL_FROM", "michael.silva@discente.ufcat.edu.br")
 
 # Chave para sessões / CSRF (itsdangerous)
 SESSION_SECRET_KEY = os.getenv("SECRET_KEY", SECRET_KEY)

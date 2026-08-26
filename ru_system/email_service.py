@@ -1,6 +1,6 @@
 """
-Serviço de envio de emails via API HTTP da Resend.
-Se RESEND_API_KEY não estiver configurada, imprime o link no terminal (modo desenvolvimento).
+Serviço de envio de emails via API HTTP da Brevo.
+Se BREVO_API_KEY não estiver configurada, imprime o link no terminal (modo desenvolvimento).
 
 Usa a API HTTP (não SMTP): conexões SMTP diretas costumam ser bloqueadas ou mal
 roteadas em PaaS gratuitos (ex.: Render), travando o worker por minutos até dar
@@ -10,28 +10,33 @@ import logging
 
 import requests
 
-from config import RESEND_API_KEY, EMAIL_FROM, BASE_URL
+from config import BREVO_API_KEY, EMAIL_FROM, EMAIL_FROM_NOME, BASE_URL
 
 logger = logging.getLogger(__name__)
 
-RESEND_URL = "https://api.resend.com/emails"
+BREVO_URL = "https://api.brevo.com/v3/smtp/email"
 _TIMEOUT_SEGUNDOS = 8
 
 
 def _enviar_via_resend(destinatarios: list[str], assunto: str, html: str) -> bool:
     try:
         resp = requests.post(
-            RESEND_URL,
-            headers={"Authorization": f"Bearer {RESEND_API_KEY}"},
-            json={"from": EMAIL_FROM, "to": destinatarios, "subject": assunto, "html": html},
+            BREVO_URL,
+            headers={"api-key": BREVO_API_KEY, "accept": "application/json", "content-type": "application/json"},
+            json={
+                "sender": {"name": EMAIL_FROM_NOME, "email": EMAIL_FROM},
+                "to": [{"email": d} for d in destinatarios],
+                "subject": assunto,
+                "htmlContent": html,
+            },
             timeout=_TIMEOUT_SEGUNDOS,
         )
         if resp.status_code >= 400:
-            logger.error("Resend recusou o envio (%s): %s", resp.status_code, resp.text)
+            logger.error("Brevo recusou o envio (%s): %s", resp.status_code, resp.text)
             return False
         return True
     except requests.RequestException as exc:
-        logger.error("Erro de rede ao chamar a API da Resend: %s", exc)
+        logger.error("Erro de rede ao chamar a API da Brevo: %s", exc)
         return False
 
 
@@ -230,7 +235,7 @@ def enviar_emails_alerta_lote(emails: list[str], assunto: str, mensagem: str) ->
     """Envia o mesmo alerta para vários destinatários."""
     if not emails:
         return 0
-    if not RESEND_API_KEY:
+    if not BREVO_API_KEY:
         logger.info("[DEV] Email alerta simulado para %d destinatários: %s", len(emails), mensagem)
         return len(emails)
     html = _template_alerta(mensagem)
@@ -240,9 +245,9 @@ def enviar_emails_alerta_lote(emails: list[str], assunto: str, mensagem: str) ->
 def enviar_email_boas_vindas(email: str, nome: str, matricula: str) -> bool:
     """
     Envia email de confirmação de cadastro ao novo aluno.
-    Em modo dev (sem RESEND_API_KEY), imprime no terminal.
+    Em modo dev (sem BREVO_API_KEY), imprime no terminal.
     """
-    if not RESEND_API_KEY:
+    if not BREVO_API_KEY:
         print("\n" + "="*60)
         print("📧 [MODO DEV] Email de boas-vindas")
         print(f"   Para: {email}  |  Nome: {nome}  |  Matrícula: {matricula}")
@@ -262,11 +267,11 @@ def enviar_email_recuperacao(email: str, token: str, nome: str = "") -> bool:
     """
     Envia email de recuperação de senha.
     Retorna True se enviado com sucesso.
-    Em modo dev (sem RESEND_API_KEY), imprime o link no terminal.
+    Em modo dev (sem BREVO_API_KEY), imprime o link no terminal.
     """
     link = f"{BASE_URL}/recuperar-senha/{token}"
 
-    if not RESEND_API_KEY:
+    if not BREVO_API_KEY:
         print("\n" + "="*60)
         print("📧 [MODO DEV] Email de recuperação de senha")
         print(f"   Para: {email}")
@@ -284,9 +289,9 @@ def enviar_email_recuperacao(email: str, token: str, nome: str = "") -> bool:
 def enviar_email_avaliacao(email: str, nome: str, tipo_refeicao: str, token: str) -> bool:
     """
     Envia o lembrete de avaliação (5 estrelas clicáveis, sem precisar logar).
-    Em modo dev (sem RESEND_API_KEY), imprime o link no terminal.
+    Em modo dev (sem BREVO_API_KEY), imprime o link no terminal.
     """
-    if not RESEND_API_KEY:
+    if not BREVO_API_KEY:
         print("\n" + "="*60)
         print("📧 [MODO DEV] Email de avaliação de refeição")
         print(f"   Para: {email}")
