@@ -177,7 +177,7 @@ def _template_avaliacao(nome: str, tipo_refeicao: str, token: str) -> str:
                     </p>
                     <div style="margin-bottom: 8px;">{estrelas}</div>
                     <p style="color: #bbb; font-size: 12px; margin: 24px 0 0;">
-                        Leva 1 clique — não precisa fazer login.
+                        Leva 1 clique. Não precisa fazer login.
                     </p>
                 </div>
             </div>

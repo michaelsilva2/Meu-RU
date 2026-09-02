@@ -447,12 +447,22 @@ async def avaliacao_email_comentario_post(
     verificar_csrf(request, {"csrf_token": csrf_token})
 
     envio = _envio_do_token(token, db)
-    if envio and envio.resposta:
-        envio.resposta.sugestao = comentario.strip()[:500] or None
-        db.commit()
-        return templates.TemplateResponse(request, "avaliacao_email_comentario.html", {"status": "obrigado"})
+    if not envio or not envio.resposta:
+        return templates.TemplateResponse(request, "avaliacao_email_comentario.html", {"status": "invalido"})
 
-    return templates.TemplateResponse(request, "avaliacao_email_comentario.html", {"status": "invalido"})
+    comentario = comentario.strip()
+    if not comentario:
+        csrf = gerar_csrf_token()
+        resposta = templates.TemplateResponse(request, "avaliacao_email_comentario.html", {
+            "status": "form", "token": token, "csrf_token": csrf,
+            "erro": "Escreva um comentário antes de enviar.",
+        }, status_code=422)
+        resposta.set_cookie("csrf_token", csrf, httponly=False, samesite="lax")
+        return resposta
+
+    envio.resposta.sugestao = comentario[:500]
+    db.commit()
+    return templates.TemplateResponse(request, "avaliacao_email_comentario.html", {"status": "obrigado"})
 
 
 # ─── CADASTRO DE NOVO ALUNO ───────────────────────────────────────────────

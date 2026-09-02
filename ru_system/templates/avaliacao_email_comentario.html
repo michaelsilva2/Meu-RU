@@ -18,13 +18,16 @@
             {% if status == "form" %}
                 <h2 class="text-xl font-bold text-gray-900 mb-2 text-center">Quer contar mais?</h2>
                 <p class="text-gray-500 text-sm mb-6 text-center">
-                    Um comentário curto ajuda bastante (opcional).
+                    Um comentário curto ajuda bastante.
                 </p>
+                {% if erro %}
+                <p class="text-red-600 text-sm mb-4 text-center font-semibold">{{ erro }}</p>
+                {% endif %}
                 <form method="POST" action="/avaliacao-email/{{ token }}/comentario">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                    <textarea name="comentario" rows="4" maxlength="500"
+                    <textarea name="comentario" rows="4" maxlength="500" required
                         placeholder="Ex: a comida estava boa, mas a fila demorou muito..."
-                        class="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-900 text-sm placeholder-gray-300 transition focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 mb-5"></textarea>
+                        class="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-900 text-sm placeholder-gray-300 transition focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 mb-5">{{ comentario or '' }}</textarea>
                     <button type="submit"
                         class="w-full text-white font-bold py-4 px-6 rounded-xl text-sm"
                         style="background: linear-gradient(135deg, #F47920, #E03D3D);">
