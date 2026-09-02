@@ -284,7 +284,10 @@ async def enviar_lembretes_avaliacao_email():
 # ── Criação do scheduler ──────────────────────────────────────────────────────
 
 def criar_scheduler() -> AsyncIOScheduler:
-    scheduler = AsyncIOScheduler(timezone=BR_TZ)
+    # misfire_grace_time padrão do APScheduler é 1s — no free tier do Render
+    # os jobs consistentemente disparam ~1.09s atrasados (jitter do event loop),
+    # o que fazia TODO job de intervalo ser pulado (nunca executado) silenciosamente.
+    scheduler = AsyncIOScheduler(timezone=BR_TZ, job_defaults={"misfire_grace_time": 60})
     scheduler.add_job(
         confirmar_presenca_almoco,
         CronTrigger(hour=10, minute=0, day_of_week="mon-fri", timezone=BR_TZ),
