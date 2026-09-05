@@ -625,6 +625,41 @@
         </div>
     </div>
 </main>
+
+<!-- Aviso: pagamento é simulado (protótipo de pesquisa/TCC) -->
+<div id="modal-aviso-pagamento" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[100] p-4">
+    <div class="w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <div class="h-1 w-full" style="background: linear-gradient(90deg, #F47920, #E03D3D);"></div>
+        <div class="p-7">
+            <div class="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style="background:#F4792018;">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" style="color:#F47920;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+            <h2 class="text-lg font-bold text-gray-900 mb-2">Sobre a recarga de créditos</h2>
+            <p class="text-gray-600 text-sm mb-3 leading-relaxed">
+                Este site é um protótipo de pesquisa (TCC). O pagamento por Pix é <strong>simulado</strong>:
+                você não precisa ter conta em banco de verdade nem acessar nenhum aplicativo bancário.
+            </p>
+            <p class="text-gray-600 text-sm mb-5 leading-relaxed">
+                É só gerar a cobrança e aguardar alguns segundos. O crédito cai sozinho, automaticamente.
+            </p>
+            <button
+                onclick="document.getElementById('modal-aviso-pagamento').classList.add('hidden'); try { localStorage.setItem('meuru_aviso_pagamento_visto', '1'); } catch(e) {}"
+                class="w-full text-white font-bold py-3 px-6 rounded-xl text-sm"
+                style="background: linear-gradient(135deg, #F47920, #E03D3D);">
+                Entendi
+            </button>
+        </div>
+    </div>
+</div>
+<script>
+    try {
+        if (!localStorage.getItem('meuru_aviso_pagamento_visto')) {
+            document.getElementById('modal-aviso-pagamento').classList.remove('hidden');
+        }
+    } catch (e) {}
+</script>
 {% endblock %}
 
 {% block scripts %}
